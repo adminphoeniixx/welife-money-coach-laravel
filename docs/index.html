@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#CC1D79" />
+<title>MoneyCoach — iOS App</title>
+<link rel="apple-touch-icon" href="assets/logo.png" />
+<style>
+:root{
+  --teal:#06B7AD; --teal-d:#059a92;
+  --magenta:#CC1D79; --magenta-d:#a81563;
+  --grad:linear-gradient(135deg,#CC1D79 0%,#06B7AD 100%);
+  --grad-soft:linear-gradient(135deg,rgba(204,29,121,.12),rgba(6,183,173,.12));
+  --bg:#F2F2F7; --card:#FFFFFF; --card2:#FBFBFD;
+  --ink:#1C1C1E; --ink2:#3A3A3C; --muted:#8E8E93; --muted2:#AEAEB2;
+  --sep:rgba(60,60,67,.10); --sep2:rgba(60,60,67,.18);
+  --green:#06B7AD; --red:#CC1D79; --amber:#FF9F0A; --blue:#0A84FF;
+  --radius:18px; --radius-sm:12px;
+  --safe-top:44px; --safe-bottom:34px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--font);color:var(--ink);
+  background:#c9ccd3;
+  background-image:radial-gradient(circle at 30% 10%,#e9d3e2,transparent 40%),radial-gradient(circle at 80% 90%,#cfeeeb,transparent 45%),linear-gradient(160deg,#dfe3ea,#c6cad2);
+  display:flex;align-items:center;justify-content:center;min-height:100vh;
+  -webkit-font-smoothing:antialiased;overscroll-behavior:none;
+}
+
+/* ===== Phone frame ===== */
+.phone{
+  position:relative;width:min(430px,100vw);height:min(932px,100vh);
+  background:var(--bg);overflow:hidden;
+  border-radius:min(54px,0px);box-shadow:0 40px 90px -20px rgba(20,10,40,.5);
+  display:flex;flex-direction:column;
+}
+@media(min-width:480px){ .phone{height:min(920px,96vh);border:12px solid #0b0b0e;border-radius:56px} }
+@media(min-width:480px){ .phone::after{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:130px;height:30px;background:#0b0b0e;border-radius:0 0 18px 18px;z-index:60} }
+
+/* ===== Status bar ===== */
+.statusbar{
+  position:absolute;top:0;left:0;right:0;height:var(--safe-top);z-index:55;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 26px 0;font-size:15px;font-weight:600;color:var(--ink);
+  pointer-events:none;transition:color .2s;
+}
+.statusbar.light{color:#fff}
+.statusbar .sb-right{display:flex;align-items:center;gap:6px}
+.statusbar svg{display:block}
+
+/* ===== Screens ===== */
+.app{position:relative;flex:1;overflow:hidden}
+.screen{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  background:var(--bg);overflow:hidden;
+}
+.screen.active{display:flex;animation:fade .28s ease}
+@keyframes fade{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:24px}
+.scroll.hasTab{padding-bottom:96px}
+
+/* ===== Nav bar ===== */
+.nav{
+  position:relative;z-index:20;padding:calc(var(--safe-top) + 4px) 16px 8px;
+  display:flex;align-items:center;gap:10px;background:var(--bg);
+  border-bottom:1px solid transparent;
+}
+.nav.blur{background:rgba(242,242,247,.82);backdrop-filter:saturate(180%) blur(20px);border-color:var(--sep)}
+.nav .back{font-size:17px;color:var(--magenta);display:flex;align-items:center;gap:2px;cursor:pointer;font-weight:400}
+.nav .title{font-size:17px;font-weight:600;flex:1;text-align:center}
+.nav .title.lead{text-align:left}
+.nav .act{color:var(--magenta);font-size:17px;cursor:pointer;font-weight:400;min-width:30px;text-align:right}
+.nav .act.strong{font-weight:600}
+.largeTitle{padding:6px 20px 10px;font-size:34px;font-weight:800;letter-spacing:-.5px}
+
+/* ===== Generic ===== */
+.pad{padding:16px 16px 0}
+.row{display:flex;align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.tiny{font-size:11px}
+.center{text-align:center}
+.mt{margin-top:14px}.mt2{margin-top:22px}.mb{margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.sectionHdr{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:20px 20px 8px}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:0 1px 2px rgba(20,10,40,.04)}
+.list{background:var(--card);border-radius:var(--radius);overflow:hidden;margin:0 16px}
+.item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--sep);cursor:pointer}
+.item:last-child{border-bottom:none}
+.item .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;color:#fff}
+.item .tx{flex:1;min-width:0}
+.item .tx b{font-weight:600;font-size:15px;display:block}
+.item .tx span{font-size:13px;color:var(--muted)}
+.item .amt{font-weight:600;font-size:15px;white-space:nowrap}
+.chev{color:var(--muted2);flex:none}
+.pos{color:var(--teal)} .neg{color:var(--magenta)}
+
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px}
+.badge.teal{background:rgba(6,183,173,.14);color:var(--teal-d)}
+.badge.mag{background:rgba(204,29,121,.12);color:var(--magenta-d)}
+.badge.amber{background:rgba(255,159,10,.16);color:#c77a00}
+.badge.gray{background:rgba(120,120,128,.14);color:var(--muted)}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border-radius:14px;border:none;font-size:17px;font-weight:600;cursor:pointer;font-family:var(--font)}
+.btn.primary{background:var(--grad);color:#fff;box-shadow:0 10px 24px -8px rgba(204,29,121,.5)}
+.btn.teal{background:var(--teal);color:#fff}
+.btn.ghost{background:rgba(120,120,128,.12);color:var(--ink)}
+.btn.outline{background:transparent;border:1.5px solid var(--sep2);color:var(--ink)}
+.btn.danger{background:rgba(204,29,121,.1);color:var(--magenta)}
+.btn.sm{padding:11px;font-size:15px;border-radius:12px}
+.link{color:var(--magenta);font-weight:600;cursor:pointer}
+
+.field{background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:12px;border:1px solid var(--sep)}
+.field label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:3px}
+.field input,.field select,.field textarea{width:100%;border:none;background:transparent;font-size:17px;color:var(--ink);font-family:var(--font);outline:none}
+.field select{appearance:none}
+
+/* segmented */
+.seg{display:flex;background:rgba(120,120,128,.12);border-radius:11px;padding:2px;margin:0 16px}
+.seg div{flex:1;text-align:center;padding:8px;font-size:14px;font-weight:600;color:var(--ink2);border-radius:9px;cursor:pointer}
+.seg div.on{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12);color:var(--ink)}
+
+/* progress */
+.bar{height:8px;border-radius:8px;background:rgba(120,120,128,.16);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:8px}
+
+/* ===== Tab bar ===== */
+.tabbar{
+  position:absolute;left:0;right:0;bottom:0;z-index:40;
+  height:calc(58px + var(--safe-bottom));padding-bottom:var(--safe-bottom);
+  display:flex;background:rgba(249,249,251,.9);backdrop-filter:saturate(180%) blur(20px);
+  border-top:1px solid var(--sep);
+}
+.tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--muted);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font)}
+.tabbar button.on{color:var(--magenta)}
+.tabbar button.on svg{stroke:var(--magenta)}
+.tabbar .plus{margin-top:-24px}
+.tabbar .plus .pbtn{width:52px;height:52px;border-radius:50%;background:var(--grad);display:grid;place-items:center;box-shadow:0 10px 22px -6px rgba(204,29,121,.6)}
+
+/* ===== Sheet ===== */
+.backdrop{position:absolute;inset:0;z-index:70;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .3s}
+.backdrop.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:22px 22px 0 0;padding:8px 16px calc(20px + var(--safe-bottom));transform:translateY(100%);transition:transform .32s cubic-bezier(.3,.9,.3,1);max-height:88%;overflow-y:auto}
+.backdrop.on .sheet{transform:none}
+.grab{width:38px;height:5px;border-radius:5px;background:var(--sep2);margin:8px auto 14px}
+
+/* hero / gradient headers */
+.hero{background:var(--grad);color:#fff;padding:calc(var(--safe-top) + 18px) 20px 26px;border-radius:0 0 28px 28px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.1)}
+.hero .lbl{opacity:.85;font-size:14px;font-weight:500}
+.hero .big{font-size:38px;font-weight:800;letter-spacing:-1px;margin-top:2px}
+
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--grad-soft);display:grid;place-items:center;font-weight:700;color:var(--magenta);font-size:15px}
+.logo{width:var(--s,72px);height:var(--s,72px);object-fit:contain}
+.logoWrap{width:var(--s,96px);height:var(--s,96px);border-radius:26px;background:#fff;display:grid;place-items:center;box-shadow:0 16px 40px -12px rgba(204,29,121,.4);margin:0 auto}
+
+.stat{background:var(--card);border-radius:var(--radius);padding:14px}
+.stat .k{font-size:12px;color:var(--muted);font-weight:600}
+.stat .v{font-size:22px;font-weight:800;margin-top:4px;letter-spacing:-.3px}
+
+.donut{width:120px;height:120px;border-radius:50%;background:conic-gradient(var(--magenta) 0 32%,#7B2FF7 32% 52%,var(--teal) 52% 74%,var(--amber) 74% 88%,#0A84FF 88% 100%);display:grid;place-items:center;flex:none}
+.donut i{width:78px;height:78px;background:var(--card);border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;font-style:normal;flex-direction:column}
+.legend{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0}
+.dot{width:10px;height:10px;border-radius:3px;flex:none}
+
+.bars{display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:8px}
+.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.bars .b i{width:70%;border-radius:6px 6px 0 0;background:var(--grad);display:block}
+.bars .b span{font-size:11px;color:var(--muted)}
+
+.circle-prog{--p:70;width:150px;height:150px;border-radius:50%;background:conic-gradient(var(--teal) calc(var(--p)*1%),rgba(120,120,128,.16) 0);display:grid;place-items:center;margin:0 auto}
+.circle-prog i{width:112px;height:112px;background:var(--card);border-radius:50%;display:grid;place-items:center;flex-direction:column;font-style:normal}
+
+.pill{padding:7px 14px;border-radius:20px;background:rgba(120,120,128,.12);font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer}
+.pill.on{background:var(--ink);color:#fff}
+.hscroll{display:flex;gap:8px;overflow-x:auto;padding:0 16px 4px;scrollbar-width:none}
+.hscroll::-webkit-scrollbar{display:none}
+
+.planCard{border:2px solid var(--sep);border-radius:20px;padding:18px;margin:0 16px 12px;background:var(--card)}
+.planCard.on{border-color:var(--magenta);background:linear-gradient(135deg,rgba(204,29,121,.05),rgba(6,183,173,.05))}
+.check{width:20px;height:20px;border-radius:50%;background:var(--teal);display:grid;place-items:center;flex:none}
+
+.toast{position:absolute;left:16px;right:16px;bottom:calc(80px + var(--safe-bottom));z-index:90;background:rgba(28,28,30,.95);color:#fff;padding:14px 16px;border-radius:14px;font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;transform:translateY(20px);opacity:0;pointer-events:none;transition:.3s}
+.toast.on{transform:none;opacity:1}
+.homeIndicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:135px;height:5px;border-radius:5px;background:rgba(0,0,0,.3);z-index:80}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- ===================== STATUS BAR ===================== -->
+  <div class="statusbar" id="statusbar">
+    <span>9:41</span>
+    <span class="sb-right">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><path d="M8.5 2.2c2 0 3.9.8 5.3 2.1l1.2-1.3C13.3 1.3 11 .4 8.5.4S3.7 1.3 2 3l1.2 1.3C4.6 3 6.5 2.2 8.5 2.2Z"/><path d="M8.5 5.6c1.1 0 2.1.4 2.9 1.2l1.2-1.3C11.4 4.4 10 3.8 8.5 3.8S5.6 4.4 4.4 5.5l1.2 1.3c.8-.8 1.8-1.2 2.9-1.2Z"/><circle cx="8.5" cy="9.6" r="1.6"/></svg>
+      <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="3" stroke="currentColor" stroke-opacity=".4"/><rect x="2.5" y="2.5" width="16" height="7" rx="1.5" fill="currentColor"/><rect x="23.5" y="4" width="1.5" height="4" rx="1" fill="currentColor" fill-opacity=".5"/></svg>
+    </span>
+  </div>
+
+  <div class="app" id="app">
+
+  <!-- ===================== WELCOME ===================== -->
+  <section class="screen active" id="welcome" data-bar="light">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 30px;background:var(--grad);color:#fff">
+      <div class="logoWrap" style="--s:104px"><img class="logo" style="--s:78px" src="assets/logo.png" alt="MoneyCoach"/></div>
+      <h1 style="font-size:34px;font-weight:800;margin-top:26px;letter-spacing:-.5px">MoneyCoach</h1>
+      <p style="opacity:.9;font-size:16px;margin-top:8px;max-width:280px">Track money, crush debt, and never miss a due date.</p>
+    </div>
+    <div style="padding:20px 20px calc(24px + var(--safe-bottom));background:var(--grad)">
+      <button class="btn" style="background:#fff;color:var(--magenta)" onclick="nav.go('register')">Get Started</button>
+      <button class="btn" style="background:rgba(255,255,255,.16);color:#fff;margin-top:10px" onclick="nav.go('login')">I already have an account</button>
+    </div>
+  </section>
+
+  <!-- ===================== LOGIN ===================== -->
+  <section class="screen" id="login">
+    <div class="nav"><span class="back" onclick="nav.go('welcome')">‹ Back</span><span class="title">Log in</span><span class="act"></span></div>
+    <div class="scroll pad">
+      <div class="logoWrap" style="--s:76px;margin-top:8px"><img class="logo" style="--s:56px" src="assets/logo.png"/></div>
+      <h2 class="center mt2" style="font-size:24px;font-weight:800">Welcome back</h2>
+      <p class="center muted small mt" style="margin-bottom:20px">Sign in to continue to MoneyCoach</p>
+      <div class="field"><label>Email</label><input type="email" value="rahul@example.com" placeholder="you@example.com"/></div>
+      <div class="field"><label>Password</label><input type="password" value="password" placeholder="••••••••"/></div>
+      <div class="row between" style="margin:2px 4px 18px"><label class="small muted row" style="gap:6px"><input type="checkbox" checked/> Remember me</label><span class="link small" onclick="nav.go('forgot')">Forgot password?</span></div>
+      <button class="btn primary" onclick="app_.enter()">Log in</button>
+      <div class="row" style="gap:12px;margin:20px 0"><div style="flex:1;height:1px;background:var(--sep2)"></div><span class="muted small">or continue with</span><div style="flex:1;height:1px;background:var(--sep2)"></div></div>
+      <button class="btn outline" onclick="app_.enter()"> Continue with Apple</button>
+      <button class="btn outline mt" onclick="app_.enter()">G  Continue with Google</button>
+      <p class="center muted small mt2">New here? <span class="link" onclick="nav.go('register')">Create account</span></p>
+    </div>
+  </section>
+
+  <!-- ===================== REGISTER ===================== -->
+  <section class="screen" id="register">
+    <div class="nav"><span class="back" onclick="nav.go('welcome')">‹ Back</span><span class="title">Create account</span><span class="act"></span></div>
+    <div class="scroll pad">
+      <h2 class="mt" style="font-size:26px;font-weight:800">Let's get started</h2>
+      <p class="muted small" style="margin:6px 0 18px">Free forever. No card required.</p>
+      <div class="field"><label>Full name</label><input value="Rahul Sharma" placeholder="Your name"/></div>
+      <div class="field"><label>Email</label><input type="email" placeholder="you@example.com"/></div>
+      <div class="field"><label>Password</label><input type="password" placeholder="Min. 8 characters"/></div>
+      <div class="field"><label>Confirm password</label><input type="password" placeholder="Re-enter password"/></div>
+      <label class="small muted row" style="gap:8px;margin:2px 4px 16px;align-items:flex-start"><input type="checkbox" checked style="margin-top:3px"/> <span>I agree to the <span class="link" onclick="nav.go('legalTerms')">Terms</span> & <span class="link" onclick="nav.go('legalPrivacy')">Privacy Policy</span>.</span></label>
+      <button class="btn primary" onclick="nav.go('onbCurrency')">Create account</button>
+      <p class="center muted small mt2">Already have an account? <span class="link" onclick="nav.go('login')">Log in</span></p>
+    </div>
+  </section>
+
+  <!-- ===================== FORGOT ===================== -->
+  <section class="screen" id="forgot">
+    <div class="nav"><span class="back" onclick="nav.go('login')">‹ Back</span><span class="title">Reset password</span><span class="act"></span></div>
+    <div class="scroll pad">
+      <div style="width:64px;height:64px;border-radius:18px;background:var(--grad-soft);display:grid;place-items:center;margin:16px auto 0;font-size:28px">🔑</div>
+      <h2 class="center mt2" style="font-size:22px;font-weight:800">Forgot your password?</h2>
+      <p class="center muted small mt" style="margin-bottom:20px;padding:0 10px">Enter your email and we'll send you a link to reset it.</p>
+      <div class="field"><label>Email</label><input type="email" placeholder="you@example.com"/></div>
+      <button class="btn primary" onclick="toast('Reset link sent to your email');setTimeout(()=>nav.go('login'),900)">Send reset link</button>
+    </div>
+  </section>
+
+  <!-- ===================== ONBOARDING: CURRENCY ===================== -->
+  <section class="screen" id="onbCurrency">
+    <div class="nav"><span class="back" onclick="nav.go('register')">‹</span><span class="title">Setup 1 of 3</span><span class="act"></span></div>
+    <div class="scroll pad">
+      <div class="bar mt"><i style="width:33%;background:var(--grad)"></i></div>
+      <h2 class="mt2" style="font-size:26px;font-weight:800">Your region & money</h2>
+      <p class="muted small" style="margin:6px 0 18px">We store money safely and show the right currency and dates.</p>
+      <div class="field"><label>Country</label><select><option>India</option><option>United States</option><option>United Kingdom</option><option>UAE</option><option>Canada</option></select></div>
+      <div class="field"><label>Currency</label><select><option>INR — Indian Rupee (₹)</option><option>USD — US Dollar ($)</option><option>GBP — Pound (£)</option><option>AED — Dirham</option></select></div>
+      <div class="field"><label>Timezone</label><select><option>Asia/Kolkata (GMT+5:30)</option><option>America/New_York</option><option>Europe/London</option></select></div>
+      <div class="field"><label>Monthly income (optional)</label><input inputmode="numeric" placeholder="₹ 85,000"/></div>
+      <button class="btn primary mt" onclick="nav.go('onbGoal')">Continue</button>
+    </div>
+  </section>
+
+  <!-- ===================== ONBOARDING: GOAL ===================== -->
+  <section class="screen" id="onbGoal">
+    <div class="nav"><span class="back" onclick="nav.go('onbCurrency')">‹</span><span class="title">Setup 2 of 3</span><span class="act"></span></div>
+    <div class="scroll pad">
+      <div class="bar mt"><i style="width:66%;background:var(--grad)"></i></div>
+      <h2 class="mt2" style="font-size:26px;font-weight:800">What's your goal?</h2>
+      <p class="muted small" style="margin:6px 0 18px">Pick one — you can change it later.</p>
+      <div class="goalOpt card row between mt" onclick="pickGoal(this)" style="cursor:pointer"><div class="row" style="gap:12px"><div style="font-size:24px">💸</div><div><b>Reduce my debt</b><div class="muted small">Pay off loans & cards faster</div></div></div><span class="radio">◯</span></div>
+      <div class="goalOpt card row between mt" onclick="pickGoal(this)" style="cursor:pointer"><div class="row" style="gap:12px"><div style="font-size:24px">📊</div><div><b>Track my spending</b><div class="muted small">Know where money goes</div></div></div><span class="radio">◯</span></div>
+      <div class="goalOpt card row between mt" onclick="pickGoal(this)" style="cursor:pointer"><div class="row" style="gap:12px"><div style="font-size:24px">⏰</div><div><b>Never miss a due date</b><div class="muted small">Bills, EMIs & reminders</div></div></div><span class="radio">◯</span></div>
+      <button class="btn primary mt2" onclick="nav.go('onbNotif')">Continue</button>
+    </div>
+  </section>
+
+  <!-- ===================== ONBOARDING: NOTIF ===================== -->
+  <section class="screen" id="onbNotif">
+    <div class="nav"><span class="back" onclick="nav.go('onbGoal')">‹</span><span class="title">Setup 3 of 3</span><span class="act"></span></div>
+    <div class="scroll pad center">
+      <div class="bar mt" style="text-align:left"><i style="width:100%;background:var(--grad)"></i></div>
+      <div style="width:80px;height:80px;border-radius:24px;background:var(--grad-soft);display:grid;place-items:center;margin:26px auto 0;font-size:38px">🔔</div>
+      <h2 class="mt2" style="font-size:24px;font-weight:800">Stay on track</h2>
+      <p class="muted small mt" style="padding:0 16px">Allow notifications so we can remind you before every bill, EMI and card due date.</p>
+      <div class="list mt2" style="text-align:left;margin:22px 0 0">
+        <div class="item"><div class="ic" style="background:var(--amber)">⏰</div><div class="tx"><b>Due-date reminders</b><span>1, 3, 5 or 7 days before</span></div></div>
+        <div class="item"><div class="ic" style="background:var(--magenta)">⚠️</div><div class="tx"><b>Overdue alerts</b><span>So nothing slips</span></div></div>
+        <div class="item"><div class="ic" style="background:var(--teal)">💡</div><div class="tx"><b>Smart insights</b><span>Weekly money tips</span></div></div>
+      </div>
+      <div style="padding:24px 0 0">
+        <button class="btn primary" onclick="app_.enter()">Enable notifications</button>
+        <button class="btn ghost mt" onclick="app_.enter()">Maybe later</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HOME ===================== -->
+  <section class="screen" id="home" data-tab="home" data-bar="light">
+    <div class="scroll hasTab" onscroll="barScroll(this)">
+      <div class="hero">
+        <div class="row between">
+          <div><div class="lbl">Good evening,</div><div style="font-size:20px;font-weight:800">Rahul 👋</div></div>
+          <div class="avatar" style="background:rgba(255,255,255,.2);color:#fff" onclick="nav.tab('profile')">RS</div>
+        </div>
+        <div class="lbl" style="margin-top:18px">Net balance this month</div>
+        <div class="big">₹ 42,350</div>
+        <div class="row" style="gap:16px;margin-top:6px;font-size:13px">
+          <span>▲ Income ₹85,000</span><span>▼ Expenses ₹42,650</span>
+        </div>
+      </div>
+
+      <!-- quick stats -->
+      <div class="grid2 pad">
+        <div class="stat"><div class="k">Total debt</div><div class="v neg">₹ 3,18,000</div><div class="small muted">across 4 accounts</div></div>
+        <div class="stat"><div class="k">Monthly EMIs</div><div class="v">₹ 24,800</div><div class="small muted">29% of income</div></div>
+      </div>
+
+      <!-- priority action -->
+      <div class="pad">
+        <div class="card" style="background:var(--grad);color:#fff" onclick="nav.go('debtCoach')">
+          <div class="row between"><span class="badge" style="background:rgba(255,255,255,.22);color:#fff">⚡ Priority</span><span class="small" style="opacity:.85">Debt Coach</span></div>
+          <div style="font-size:17px;font-weight:700;margin-top:10px">Pay ₹5,000 extra on your HDFC Card</div>
+          <div class="small" style="opacity:.9;margin-top:4px">Highest interest (42%) — saves ₹18,400 & clears 3 months sooner.</div>
+        </div>
+      </div>
+
+      <!-- upcoming -->
+      <div class="row between" style="padding:20px 20px 8px"><b>Upcoming due</b><span class="link small" onclick="nav.tab('reminders')">See all</span></div>
+      <div class="list">
+        <div class="item" onclick="nav.tab('reminders')"><div class="ic" style="background:var(--magenta)">💳</div><div class="tx"><b>HDFC Credit Card</b><span>Due in 2 days · Min ₹4,200</span></div><div class="amt neg">₹18,400</div></div>
+        <div class="item" onclick="nav.tab('reminders')"><div class="ic" style="background:var(--blue)">🏠</div><div class="tx"><b>Home Loan EMI</b><span>Due in 5 days</span></div><div class="amt">₹15,600</div></div>
+        <div class="item" onclick="nav.tab('reminders')"><div class="ic" style="background:var(--amber)">📱</div><div class="tx"><b>Jio Postpaid</b><span>Due in 6 days</span></div><div class="amt">₹599</div></div>
+      </div>
+
+      <!-- spending breakdown -->
+      <div class="row between" style="padding:20px 20px 8px"><b>Spending breakdown</b><span class="link small" onclick="nav.go('insights')">Reports</span></div>
+      <div class="card" style="margin:0 16px">
+        <div class="row" style="gap:18px">
+          <div class="donut"><i>₹42.6k<span class="tiny muted" style="font-weight:600">this month</span></i></div>
+          <div style="flex:1">
+            <div class="legend"><span class="dot" style="background:var(--magenta)"></span>Loans & EMI <b style="margin-left:auto">32%</b></div>
+            <div class="legend"><span class="dot" style="background:#7B2FF7"></span>Housing <b style="margin-left:auto">20%</b></div>
+            <div class="legend"><span class="dot" style="background:var(--teal)"></span>Food <b style="margin-left:auto">22%</b></div>
+            <div class="legend"><span class="dot" style="background:var(--amber)"></span>Transport <b style="margin-left:auto">14%</b></div>
+            <div class="legend"><span class="dot" style="background:var(--blue)"></span>Other <b style="margin-left:auto">12%</b></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- quick add -->
+      <div class="sectionHdr">Quick add</div>
+      <div class="grid3" style="padding:0 16px">
+        <div class="card center" style="padding:14px" onclick="nav.go('addExpense')"><div style="font-size:22px">🧾</div><div class="small" style="font-weight:600;margin-top:4px">Expense</div></div>
+        <div class="card center" style="padding:14px" onclick="nav.go('addIncome')"><div style="font-size:22px">💰</div><div class="small" style="font-weight:600;margin-top:4px">Income</div></div>
+        <div class="card center" style="padding:14px" onclick="nav.go('addLoan')"><div style="font-size:22px">🏦</div><div class="small" style="font-weight:600;margin-top:4px">Loan</div></div>
+      </div>
+      <div style="height:20px"></div>
+    </div>
+  </section>
+
+  <!-- ===================== TRANSACTIONS ===================== -->
+  <section class="screen" id="transactions" data-tab="transactions">
+    <div class="nav blur"><span class="back" style="opacity:0">‹</span><span class="title">Transactions</span><span class="act" onclick="nav.go('addExpense')">＋</span></div>
+    <div class="seg" id="txSeg"><div class="on" onclick="segPick(this,'txAll')">All</div><div onclick="segPick(this,'txIn')">Income</div><div onclick="segPick(this,'txOut')">Expenses</div></div>
+    <div class="hscroll mt"><span class="pill on">This month</span><span class="pill">Food</span><span class="pill">Loans</span><span class="pill">Housing</span><span class="pill">Transport</span></div>
+    <div class="scroll hasTab" style="padding-top:6px">
+      <div class="row between" style="padding:16px 20px 4px"><span class="muted small" style="font-weight:600">TODAY</span><span class="muted small">−₹1,240</span></div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--teal)">🍽️</div><div class="tx"><b>Swiggy</b><span>Food · Dining out</span></div><div class="amt neg">−₹640</div></div>
+        <div class="item"><div class="ic" style="background:var(--amber)">⛽</div><div class="tx"><b>HP Petrol</b><span>Transport · Fuel</span></div><div class="amt neg">−₹600</div></div>
+      </div>
+      <div class="row between" style="padding:16px 20px 4px"><span class="muted small" style="font-weight:600">YESTERDAY</span><span class="muted small">+₹85,000</span></div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--teal)">💼</div><div class="tx"><b>Salary — Infosys</b><span>Income · Salary</span></div><div class="amt pos">+₹85,000</div></div>
+        <div class="item"><div class="ic" style="background:#7B2FF7">🛒</div><div class="tx"><b>BigBasket</b><span>Food · Groceries</span></div><div class="amt neg">−₹3,120</div></div>
+        <div class="item"><div class="ic" style="background:var(--blue)">🎬</div><div class="tx"><b>Netflix</b><span>Entertainment · Recurring</span></div><div class="amt neg">−₹649</div></div>
+      </div>
+      <div class="row between" style="padding:16px 20px 4px"><span class="muted small" style="font-weight:600">18 JUL</span><span class="muted small">−₹16,199</span></div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--blue)">🏠</div><div class="tx"><b>Home Loan EMI</b><span>Loans · Auto-paid</span></div><div class="amt neg">−₹15,600</div></div>
+        <div class="item"><div class="ic" style="background:var(--magenta)">💡</div><div class="tx"><b>Electricity</b><span>Utilities</span></div><div class="amt neg">−₹599</div></div>
+      </div>
+      <div style="height:20px"></div>
+    </div>
+  </section>
+
+  <!-- ===================== DEBTS ===================== -->
+  <section class="screen" id="debts" data-tab="debts">
+    <div class="nav blur"><span class="back" style="opacity:0">‹</span><span class="title">Debts</span><span class="act" onclick="openSheet()">＋</span></div>
+    <div class="scroll hasTab">
+      <div class="pad">
+        <div class="card" style="background:var(--grad);color:#fff">
+          <div class="lbl" style="opacity:.85;font-size:13px">Total outstanding</div>
+          <div style="font-size:32px;font-weight:800;letter-spacing:-.5px">₹ 3,18,000</div>
+          <div class="row between mt" style="font-size:13px;opacity:.92"><span>Monthly payment ₹24,800</span><span>Avg APR 19.4%</span></div>
+        </div>
+      </div>
+      <div class="row between" style="padding:8px 20px 8px"><b>Debt-free coach</b><span class="link small" onclick="nav.go('debtCoach')">Open</span></div>
+      <div class="card" style="margin:0 16px" onclick="nav.go('debtCoach')">
+        <div class="row between"><span class="badge teal">On track</span><span class="small muted">Avalanche method</span></div>
+        <div class="row" style="gap:14px;margin-top:12px">
+          <div class="circle-prog" style="--p:34;width:88px;height:88px"><i style="width:64px;height:64px"><b style="font-size:16px">34%</b></i></div>
+          <div style="flex:1"><b>Debt-free by Mar 2028</b><div class="muted small mt">Keep paying ₹24,800/mo · Add ₹5k to finish 4 months early.</div></div>
+        </div>
+      </div>
+
+      <div class="sectionHdr">Loans</div>
+      <div class="list">
+        <div class="item" onclick="nav.go('loanDetail')"><div class="ic" style="background:var(--blue)">🏠</div><div class="tx"><b>Home Loan · HDFC</b><span>₹2,10,000 left · 8.4% · EMI ₹15,600</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div class="item" onclick="nav.go('loanDetail')"><div class="ic" style="background:#7B2FF7">🚗</div><div class="tx"><b>Car Loan · SBI</b><span>₹48,000 left · 9.2% · EMI ₹5,200</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+      </div>
+
+      <div class="sectionHdr">Credit cards</div>
+      <div class="list">
+        <div class="item" onclick="nav.go('cardDetail')"><div class="ic" style="background:var(--magenta)">💳</div><div class="tx"><b>HDFC Millennia</b><span>₹18,400 used of ₹1,00,000 · 42% APR</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div class="item" onclick="nav.go('cardDetail')"><div class="ic" style="background:var(--amber)">💳</div><div class="tx"><b>Amazon ICICI</b><span>₹41,600 used of ₹1,50,000 · 38% APR</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+      </div>
+      <div class="pad"><button class="btn ghost" onclick="openSheet()">＋ Add loan or card</button></div>
+      <div style="height:10px"></div>
+    </div>
+  </section>
+
+  <!-- ===================== DEBT COACH ===================== -->
+  <section class="screen" id="debtCoach">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹ Debts</span><span class="title">Debt Coach</span><span class="act"></span></div>
+    <div class="scroll">
+      <div class="seg mt"><div class="on" onclick="segPick(this)">Avalanche</div><div onclick="segPick(this)">Snowball</div></div>
+      <p class="muted small" style="padding:12px 20px 0">Avalanche pays highest-interest debt first — saves the most money.</p>
+      <div class="pad">
+        <div class="grid2">
+          <div class="stat"><div class="k">Debt-free date</div><div class="v" style="color:var(--teal)">Mar 2028</div></div>
+          <div class="stat"><div class="k">Interest you'll pay</div><div class="v neg">₹71,200</div></div>
+        </div>
+      </div>
+      <div class="sectionHdr">Pay in this order</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--magenta)">1</div><div class="tx"><b>HDFC Millennia · 42%</b><span>₹18,400 · pay this first ⚡</span></div><span class="badge mag">Focus</span></div>
+        <div class="item"><div class="ic" style="background:var(--amber)">2</div><div class="tx"><b>Amazon ICICI · 38%</b><span>₹41,600</span></div></div>
+        <div class="item"><div class="ic" style="background:#7B2FF7">3</div><div class="tx"><b>Car Loan · 9.2%</b><span>₹48,000</span></div></div>
+        <div class="item"><div class="ic" style="background:var(--blue)">4</div><div class="tx"><b>Home Loan · 8.4%</b><span>₹2,10,000</span></div></div>
+      </div>
+      <div class="pad">
+        <div class="card">
+          <b>Try an extra payment</b>
+          <div class="muted small mt">Add extra per month and see how much sooner you're free.</div>
+          <input type="range" min="0" max="15000" value="5000" style="width:100%;margin-top:14px;accent-color:var(--magenta)" oninput="document.getElementById('extraV').textContent='₹'+(+this.value).toLocaleString('en-IN')"/>
+          <div class="row between mt"><span class="muted small">Extra / month</span><b id="extraV">₹5,000</b></div>
+          <div class="card mt" style="background:var(--grad-soft)"><div class="row between"><span class="small">New debt-free date</span><b class="pos">Nov 2027</b></div><div class="row between mt"><span class="small">Interest saved</span><b class="pos">₹18,400</b></div></div>
+        </div>
+      </div>
+      <div class="pad"><button class="btn primary" onclick="toast('Extra payment plan applied')">Apply this plan</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== LOAN DETAIL ===================== -->
+  <section class="screen" id="loanDetail">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹ Debts</span><span class="title">Home Loan</span><span class="act" onclick="toast('Edit loan')">Edit</span></div>
+    <div class="scroll">
+      <div class="pad">
+        <div class="card center">
+          <div class="ic" style="background:var(--blue);width:52px;height:52px;font-size:24px;margin:0 auto;border-radius:16px">🏠</div>
+          <h2 class="mt" style="font-size:22px;font-weight:800">₹2,10,000</h2>
+          <div class="muted small">outstanding of ₹8,50,000</div>
+          <div class="bar mt2"><i style="width:75%;background:var(--grad)"></i></div>
+          <div class="muted tiny mt">75% paid off</div>
+        </div>
+      </div>
+      <div class="grid2 pad" style="padding-top:0">
+        <div class="stat"><div class="k">Interest rate</div><div class="v" style="font-size:19px">8.4%</div></div>
+        <div class="stat"><div class="k">Monthly EMI</div><div class="v" style="font-size:19px">₹15,600</div></div>
+        <div class="stat"><div class="k">Next due</div><div class="v" style="font-size:19px">23 Jul</div></div>
+        <div class="stat"><div class="k">Tenure left</div><div class="v" style="font-size:19px">14 mo</div></div>
+      </div>
+      <div class="sectionHdr">Payment history</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--teal)">✓</div><div class="tx"><b>June EMI</b><span>18 Jun 2026 · On time</span></div><div class="amt">₹15,600</div></div>
+        <div class="item"><div class="ic" style="background:var(--teal)">✓</div><div class="tx"><b>May EMI</b><span>18 May 2026 · On time</span></div><div class="amt">₹15,600</div></div>
+        <div class="item"><div class="ic" style="background:var(--teal)">✓</div><div class="tx"><b>April EMI</b><span>18 Apr 2026 · On time</span></div><div class="amt">₹15,600</div></div>
+      </div>
+      <div class="pad"><button class="btn primary" onclick="toast('Payment recorded')">Record a payment</button><button class="btn danger mt" onclick="toast('Loan closed')">Mark as closed</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== CARD DETAIL ===================== -->
+  <section class="screen" id="cardDetail">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹ Debts</span><span class="title">HDFC Millennia</span><span class="act" onclick="toast('Edit card')">Edit</span></div>
+    <div class="scroll">
+      <div class="pad">
+        <div class="card" style="background:linear-gradient(135deg,#1c1c1e,#3a3a3c);color:#fff;padding:20px;border-radius:18px">
+          <div class="row between"><span style="opacity:.7;font-size:13px">Credit card</span><b>VISA</b></div>
+          <div style="letter-spacing:3px;font-size:18px;margin-top:24px">•••• •••• •••• 4021</div>
+          <div class="row between" style="margin-top:16px;font-size:13px"><span style="opacity:.8">Rahul Sharma</span><span style="opacity:.8">08/28</span></div>
+        </div>
+      </div>
+      <div class="pad" style="padding-top:0">
+        <div class="card">
+          <div class="row between"><span class="muted small">Credit used</span><b>₹18,400 / ₹1,00,000</b></div>
+          <div class="bar mt"><i style="width:18%;background:var(--magenta)"></i></div>
+          <div class="row between mt"><span class="badge teal">18% utilisation · Good</span><span class="small muted">₹81,600 available</span></div>
+        </div>
+      </div>
+      <div class="grid2 pad" style="padding-top:0">
+        <div class="stat"><div class="k">Current bill</div><div class="v neg" style="font-size:19px">₹18,400</div></div>
+        <div class="stat"><div class="k">Minimum due</div><div class="v" style="font-size:19px">₹4,200</div></div>
+        <div class="stat"><div class="k">Due date</div><div class="v" style="font-size:19px">22 Jul</div></div>
+        <div class="stat"><div class="k">APR</div><div class="v neg" style="font-size:19px">42%</div></div>
+      </div>
+      <div class="pad"><button class="btn primary" onclick="toast('Payment recorded')">Record payment</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== REMINDERS ===================== -->
+  <section class="screen" id="reminders" data-tab="reminders">
+    <div class="nav blur"><span class="back" style="opacity:0">‹</span><span class="title">Reminders</span><span class="act" onclick="nav.go('addReminder')">＋</span></div>
+    <div class="seg"><div class="on" onclick="segPick(this)">Upcoming</div><div onclick="segPick(this)">Overdue</div><div onclick="segPick(this)">Done</div></div>
+    <div class="scroll hasTab">
+      <div class="pad">
+        <div class="card" style="background:rgba(204,29,121,.08)">
+          <div class="row" style="gap:10px"><span style="font-size:20px">⚠️</span><div><b class="neg">1 payment overdue</b><div class="muted small">Vodafone bill · was due 2 days ago · ₹499</div></div></div>
+          <div class="row" style="gap:8px;margin-top:12px"><button class="btn teal sm" style="flex:1" onclick="toast('Marked as paid')">Mark paid</button><button class="btn ghost sm" style="flex:1" onclick="toast('Snoozed 3 days')">Snooze</button></div>
+        </div>
+      </div>
+      <div class="sectionHdr">This week</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--magenta)">💳</div><div class="tx"><b>HDFC Card</b><span>Tomorrow · Min ₹4,200</span></div><div class="amt neg">₹18,400</div></div>
+        <div class="item"><div class="ic" style="background:var(--blue)">🏠</div><div class="tx"><b>Home Loan EMI</b><span>Thu, 23 Jul</span></div><div class="amt">₹15,600</div></div>
+        <div class="item"><div class="ic" style="background:var(--amber)">📱</div><div class="tx"><b>Jio Postpaid</b><span>Fri, 24 Jul · Recurring</span></div><div class="amt">₹599</div></div>
+      </div>
+      <div class="sectionHdr">Later this month</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:#7B2FF7">🚗</div><div class="tx"><b>Car Loan EMI</b><span>Mon, 28 Jul</span></div><div class="amt">₹5,200</div></div>
+        <div class="item"><div class="ic" style="background:var(--teal)">📺</div><div class="tx"><b>Netflix</b><span>Wed, 30 Jul · Recurring</span></div><div class="amt">₹649</div></div>
+      </div>
+      <div style="height:16px"></div>
+    </div>
+  </section>
+
+  <!-- ===================== INSIGHTS ===================== -->
+  <section class="screen" id="insights">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Insights</span><span class="act" onclick="toast('Exported to PDF')">⤓</span></div>
+    <div class="scroll">
+      <div class="hscroll mt"><span class="pill on">6 months</span><span class="pill">3 months</span><span class="pill">This year</span></div>
+      <div class="sectionHdr">Income vs Expense</div>
+      <div class="card" style="margin:0 16px">
+        <div class="bars">
+          <div class="b"><i style="height:60%"></i><span>Feb</span></div>
+          <div class="b"><i style="height:75%"></i><span>Mar</span></div>
+          <div class="b"><i style="height:55%"></i><span>Apr</span></div>
+          <div class="b"><i style="height:82%"></i><span>May</span></div>
+          <div class="b"><i style="height:68%"></i><span>Jun</span></div>
+          <div class="b"><i style="height:50%"></i><span>Jul</span></div>
+        </div>
+      </div>
+      <div class="grid2 pad">
+        <div class="stat"><div class="k">Avg monthly savings</div><div class="v pos">₹38,900</div></div>
+        <div class="stat"><div class="k">Savings rate</div><div class="v">46%</div></div>
+      </div>
+      <div class="sectionHdr">Budgets</div>
+      <div class="list">
+        <div class="item" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><b>Food</b><span class="small muted">₹9,380 / ₹12,000</span></div><div class="bar"><i style="width:78%;background:var(--teal)"></i></div></div>
+        <div class="item" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><b>Transport</b><span class="small muted">₹5,900 / ₹6,000</span></div><div class="bar"><i style="width:98%;background:var(--amber)"></i></div></div>
+        <div class="item" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><b>Shopping</b><span class="small neg">₹7,200 / ₹5,000</span></div><div class="bar"><i style="width:100%;background:var(--magenta)"></i></div></div>
+      </div>
+      <div class="pad"><button class="btn ghost" onclick="toast('Report exported (CSV)')">Export report</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== PROFILE ===================== -->
+  <section class="screen" id="profile" data-tab="profile">
+    <div class="nav blur"><span class="back" style="opacity:0">‹</span><span class="title">Profile</span><span class="act"></span></div>
+    <div class="scroll hasTab">
+      <div class="pad center">
+        <div class="avatar" style="width:76px;height:76px;font-size:26px;margin:6px auto 0">RS</div>
+        <h2 class="mt" style="font-size:22px;font-weight:800">Rahul Sharma</h2>
+        <div class="muted small">rahul@example.com</div>
+        <span class="badge mag" style="margin-top:8px">Free plan</span>
+      </div>
+      <div class="pad">
+        <div class="card" style="background:var(--grad);color:#fff" onclick="nav.go('subscription')">
+          <div class="row between"><b>Go Premium ✨</b><span>›</span></div>
+          <div class="small" style="opacity:.9;margin-top:4px">Unlimited loans & cards, advanced debt scenarios, ad-free.</div>
+        </div>
+      </div>
+      <div class="sectionHdr">Account</div>
+      <div class="list">
+        <div class="item" onclick="toast('Edit profile')"><div class="ic" style="background:var(--blue)">👤</div><div class="tx"><b>Edit profile</b></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+        <div class="item" onclick="nav.go('setRegion')"><div class="ic" style="background:var(--teal)">🌐</div><div class="tx"><b>Currency & region</b><span>INR · India</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+        <div class="item" onclick="nav.go('setNotif')"><div class="ic" style="background:var(--amber)">🔔</div><div class="tx"><b>Notifications</b></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+        <div class="item" onclick="nav.go('setSecurity')"><div class="ic" style="background:var(--magenta)">🔒</div><div class="tx"><b>Security</b><span>Face ID · 2FA on</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+      </div>
+      <div class="sectionHdr">Data & privacy</div>
+      <div class="list">
+        <div class="item" onclick="nav.go('dataPrivacy')"><div class="ic" style="background:#7B2FF7">🛡️</div><div class="tx"><b>Data & privacy</b><span>Export or delete your data</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+        <div class="item" onclick="nav.go('legalPrivacy')"><div class="ic" style="background:var(--muted)">📄</div><div class="tx"><b>Privacy Policy</b></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+        <div class="item" onclick="nav.go('legalTerms')"><div class="ic" style="background:var(--muted)">📄</div><div class="tx"><b>Terms of Service</b></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+      </div>
+      <div class="pad"><button class="btn danger" onclick="nav.go('welcome')">Log out</button></div>
+      <div class="center muted tiny" style="padding-bottom:16px">MoneyCoach v1.0.0</div>
+    </div>
+  </section>
+
+  <!-- ===================== SUBSCRIPTION ===================== -->
+  <section class="screen" id="subscription">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Go Premium</span><span class="act"></span></div>
+    <div class="scroll">
+      <div class="center pad"><div class="logoWrap" style="--s:64px"><img class="logo" style="--s:46px" src="assets/logo.png"/></div><h2 class="mt" style="font-size:24px;font-weight:800">Unlock everything ✨</h2><p class="muted small mt">Cancel anytime.</p></div>
+      <div class="list" style="margin:8px 16px 4px">
+        <div class="item"><div class="check">✓</div><div class="tx"><b>Unlimited loans, cards & budgets</b></div></div>
+        <div class="item"><div class="check">✓</div><div class="tx"><b>Advanced debt scenarios</b></div></div>
+        <div class="item"><div class="check">✓</div><div class="tx"><b>Smart spending alerts</b></div></div>
+        <div class="item"><div class="check">✓</div><div class="tx"><b>Scheduled exports & reports</b></div></div>
+        <div class="item"><div class="check">✓</div><div class="tx"><b>Priority, ad-free support</b></div></div>
+      </div>
+      <div class="planCard" onclick="pickPlan(this)"><div class="row between"><div><b>Yearly</b> <span class="badge teal">Save 17%</span><div class="muted small mt">₹4,999 / year</div></div><b style="font-size:18px">₹416<span class="muted small">/mo</span></b></div></div>
+      <div class="planCard on" onclick="pickPlan(this)"><div class="row between"><div><b>Monthly</b><div class="muted small mt">Billed every month</div></div><b style="font-size:18px">₹499<span class="muted small">/mo</span></b></div></div>
+      <div class="pad"><button class="btn primary" onclick="toast('Subscription activated 🎉')">Start Premium</button><p class="center muted tiny mt">Free 7-day trial · then auto-renews · cancel anytime</p></div>
+    </div>
+  </section>
+
+  <!-- ===================== SETTINGS: REGION ===================== -->
+  <section class="screen" id="setRegion">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹ Profile</span><span class="title">Currency & region</span><span class="act"></span></div>
+    <div class="scroll pad">
+      <div class="field"><label>Currency</label><select><option>INR — Indian Rupee (₹)</option><option>USD — US Dollar ($)</option><option>GBP — Pound (£)</option></select></div>
+      <div class="field"><label>Country</label><select><option>India</option><option>United States</option><option>United Kingdom</option></select></div>
+      <div class="field"><label>Timezone</label><select><option>Asia/Kolkata (GMT+5:30)</option><option>UTC</option></select></div>
+      <div class="field"><label>Number format</label><select><option>1,00,000 (Indian)</option><option>100,000 (International)</option></select></div>
+      <button class="btn primary mt" onclick="toast('Saved');setTimeout(()=>nav.back(),700)">Save</button>
+    </div>
+  </section>
+
+  <!-- ===================== SETTINGS: NOTIF ===================== -->
+  <section class="screen" id="setNotif">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹ Profile</span><span class="title">Notifications</span><span class="act"></span></div>
+    <div class="scroll">
+      <div class="sectionHdr">Reminders</div>
+      <div class="list">
+        <div class="item"><div class="tx"><b>Due-date reminders</b></div><span class="tog on" onclick="tog(this)"></span></div>
+        <div class="item"><div class="tx"><b>Overdue alerts</b></div><span class="tog on" onclick="tog(this)"></span></div>
+        <div class="item"><div class="tx"><b>Remind me</b><span>3 days before due</span></div><span class="muted small">3 days ›</span></div>
+      </div>
+      <div class="sectionHdr">Channels</div>
+      <div class="list">
+        <div class="item"><div class="tx"><b>Push notifications</b></div><span class="tog on" onclick="tog(this)"></span></div>
+        <div class="item"><div class="tx"><b>Email</b></div><span class="tog" onclick="tog(this)"></span></div>
+        <div class="item"><div class="tx"><b>Weekly summary</b></div><span class="tog on" onclick="tog(this)"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SETTINGS: SECURITY ===================== -->
+  <section class="screen" id="setSecurity">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹ Profile</span><span class="title">Security</span><span class="act"></span></div>
+    <div class="scroll">
+      <div class="sectionHdr">Sign-in</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--ink)">🙂</div><div class="tx"><b>Face ID</b><span>Unlock the app</span></div><span class="tog on" onclick="tog(this)"></span></div>
+        <div class="item"><div class="ic" style="background:var(--teal)">🔐</div><div class="tx"><b>Two-factor auth</b><span>Enabled via app</span></div><span class="tog on" onclick="tog(this)"></span></div>
+        <div class="item" onclick="toast('Passkey added')"><div class="ic" style="background:var(--blue)">🔑</div><div class="tx"><b>Passkeys</b><span>1 device</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+        <div class="item" onclick="toast('Change password')"><div class="ic" style="background:var(--magenta)">🔒</div><div class="tx"><b>Change password</b></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== DATA & PRIVACY ===================== -->
+  <section class="screen" id="dataPrivacy">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹ Profile</span><span class="title">Data & privacy</span><span class="act"></span></div>
+    <div class="scroll">
+      <div class="sectionHdr">Your data</div>
+      <div class="list">
+        <div class="item" onclick="toast('Export requested — we\'ll email you')"><div class="ic" style="background:var(--teal)">⤓</div><div class="tx"><b>Export my data</b><span>Download CSV / PDF</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+        <div class="item"><div class="ic" style="background:var(--blue)">📥</div><div class="tx"><b>Download attachments</b></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+      </div>
+      <div class="sectionHdr">Danger zone</div>
+      <div class="list">
+        <div class="item" onclick="toast('Deletion request submitted')"><div class="ic" style="background:var(--magenta)">🗑️</div><div class="tx"><b class="neg">Delete my account</b><span>Permanently remove all data</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+      </div>
+      <p class="muted tiny pad" style="padding-top:12px">We encrypt your data and never sell it. Deletion is processed within 30 days per our privacy policy.</p>
+    </div>
+  </section>
+
+  <!-- ===================== LEGAL: PRIVACY ===================== -->
+  <section class="screen" id="legalPrivacy">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Privacy Policy</span><span class="act"></span></div>
+    <div class="scroll pad"><p class="muted small" style="line-height:1.7">MoneyCoach respects your privacy. We collect only the financial information you enter to provide tracking, reminders and debt-payoff guidance. Your data is encrypted at rest and in transit and is never sold. You can export or delete your data at any time from Data &amp; Privacy. This is a placeholder policy for the prototype.</p></div>
+  </section>
+  <!-- ===================== LEGAL: TERMS ===================== -->
+  <section class="screen" id="legalTerms">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Terms of Service</span><span class="act"></span></div>
+    <div class="scroll pad"><p class="muted small" style="line-height:1.7">By using MoneyCoach you agree to use it for personal finance management. MoneyCoach provides informational guidance only and is not licensed financial advice. Subscriptions renew automatically until cancelled. This is a placeholder Terms document for the prototype.</p></div>
+  </section>
+
+  <!-- ===================== ADD EXPENSE ===================== -->
+  <section class="screen" id="addExpense">
+    <div class="nav blur"><span class="back" onclick="nav.back()">Cancel</span><span class="title">New expense</span><span class="act strong" onclick="toast('Expense saved');setTimeout(()=>nav.back(),700)">Save</span></div>
+    <div class="scroll pad">
+      <div class="card center" style="background:var(--grad-soft)"><div class="muted small">Amount</div><div style="font-size:40px;font-weight:800;color:var(--magenta)">−₹640</div></div>
+      <div class="field mt"><label>Category</label><select><option>Food · Dining out</option><option>Housing · Rent</option><option>Transport · Fuel</option><option>Loans · EMI</option><option>Utilities</option><option>Healthcare</option><option>Entertainment</option></select></div>
+      <div class="field"><label>Paid to</label><input placeholder="e.g. Swiggy"/></div>
+      <div class="field"><label>Date</label><input value="20 Jul 2026"/></div>
+      <div class="field"><label>Payment method</label><select><option>HDFC Debit Card</option><option>UPI</option><option>Cash</option><option>Credit Card</option></select></div>
+      <div class="field"><label>Note (optional)</label><input placeholder="Add a note"/></div>
+      <div class="list" style="margin:0 0 12px"><div class="item"><div class="tx"><b>Recurring</b><span>Repeat monthly</span></div><span class="tog" onclick="tog(this)"></span></div><div class="item"><div class="tx"><b>Remind me before due</b></div><span class="tog" onclick="tog(this)"></span></div></div>
+      <button class="btn ghost">📎 Attach receipt</button>
+    </div>
+  </section>
+
+  <!-- ===================== ADD INCOME ===================== -->
+  <section class="screen" id="addIncome">
+    <div class="nav blur"><span class="back" onclick="nav.back()">Cancel</span><span class="title">New income</span><span class="act strong" onclick="toast('Income saved');setTimeout(()=>nav.back(),700)">Save</span></div>
+    <div class="scroll pad">
+      <div class="card center" style="background:var(--grad-soft)"><div class="muted small">Amount</div><div style="font-size:40px;font-weight:800;color:var(--teal)">+₹85,000</div></div>
+      <div class="field mt"><label>Category</label><select><option>Salary</option><option>Business</option><option>Freelance</option><option>Rent received</option><option>Interest / Dividends</option><option>Bonus</option><option>Cashback / Refund</option></select></div>
+      <div class="field"><label>Received from</label><input placeholder="e.g. Infosys Ltd"/></div>
+      <div class="field"><label>Date</label><input value="19 Jul 2026"/></div>
+      <div class="field"><label>Deposited to</label><select><option>HDFC Savings</option><option>SBI Account</option><option>Cash</option></select></div>
+      <button class="btn ghost">📎 Attach proof</button>
+    </div>
+  </section>
+
+  <!-- ===================== ADD LOAN ===================== -->
+  <section class="screen" id="addLoan">
+    <div class="nav blur"><span class="back" onclick="nav.back()">Cancel</span><span class="title">Add loan</span><span class="act strong" onclick="toast('Loan added');setTimeout(()=>nav.tab('debts'),700)">Save</span></div>
+    <div class="scroll pad">
+      <div class="field"><label>Loan type</label><select><option>Home loan</option><option>Personal loan</option><option>Vehicle loan</option><option>Gold loan</option><option>Education loan</option><option>Business loan</option><option>Money borrowed from a person</option></select></div>
+      <div class="field"><label>Lender</label><input placeholder="e.g. HDFC Bank"/></div>
+      <div class="field"><label>Original amount</label><input inputmode="numeric" placeholder="₹ 8,50,000"/></div>
+      <div class="field"><label>Outstanding balance</label><input inputmode="numeric" placeholder="₹ 2,10,000"/></div>
+      <div class="grid2"><div class="field"><label>Interest %</label><input inputmode="decimal" placeholder="8.4"/></div><div class="field"><label>EMI</label><input inputmode="numeric" placeholder="₹15,600"/></div></div>
+      <div class="field"><label>Next due date</label><input placeholder="23 Jul 2026"/></div>
+      <div class="list" style="margin:0"><div class="item"><div class="tx"><b>Remind me before EMI</b></div><span class="tog on" onclick="tog(this)"></span></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== ADD CARD ===================== -->
+  <section class="screen" id="addCard">
+    <div class="nav blur"><span class="back" onclick="nav.back()">Cancel</span><span class="title">Add credit card</span><span class="act strong" onclick="toast('Card added');setTimeout(()=>nav.tab('debts'),700)">Save</span></div>
+    <div class="scroll pad">
+      <div class="field"><label>Bank</label><input placeholder="e.g. HDFC Bank"/></div>
+      <div class="field"><label>Card name</label><input placeholder="e.g. Millennia"/></div>
+      <div class="field"><label>Credit limit</label><input inputmode="numeric" placeholder="₹ 1,00,000"/></div>
+      <div class="field"><label>Outstanding / used</label><input inputmode="numeric" placeholder="₹ 18,400"/></div>
+      <div class="grid2"><div class="field"><label>APR %</label><input inputmode="decimal" placeholder="42"/></div><div class="field"><label>Statement date</label><input placeholder="5th"/></div></div>
+      <div class="field"><label>Payment due date</label><input placeholder="22 Jul 2026"/></div>
+      <div class="field"><label>Reminder</label><select><option>1 day before</option><option>3 days before</option><option>5 days before</option><option>7 days before</option></select></div>
+    </div>
+  </section>
+
+  <!-- ===================== ADD REMINDER ===================== -->
+  <section class="screen" id="addReminder">
+    <div class="nav blur"><span class="back" onclick="nav.back()">Cancel</span><span class="title">New reminder</span><span class="act strong" onclick="toast('Reminder set');setTimeout(()=>nav.tab('reminders'),700)">Save</span></div>
+    <div class="scroll pad">
+      <div class="field"><label>What's it for?</label><input placeholder="e.g. Electricity bill"/></div>
+      <div class="field"><label>Amount</label><input inputmode="numeric" placeholder="₹ 599"/></div>
+      <div class="field"><label>Due date</label><input placeholder="24 Jul 2026"/></div>
+      <div class="field"><label>Repeat</label><select><option>One time</option><option>Monthly</option><option>Weekly</option><option>Yearly</option></select></div>
+      <div class="field"><label>Remind me</label><select><option>1 day before</option><option>3 days before</option><option>5 days before</option><option>7 days before</option></select></div>
+    </div>
+  </section>
+
+  </div><!-- /app -->
+
+  <!-- ===================== TAB BAR ===================== -->
+  <nav class="tabbar" id="tabbar" style="display:none">
+    <button data-t="home" class="on" onclick="nav.tab('home')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>Home</button>
+    <button data-t="transactions" onclick="nav.tab('transactions')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h13l-3-3"/><path d="M20 17H7l3 3"/></svg>Money</button>
+    <button class="plus" onclick="openSheet()"><span class="pbtn"><svg width="26" height="26" viewBox="0 0 24 24" stroke="#fff" stroke-width="2.5" fill="none"><path d="M12 5v14M5 12h14"/></svg></span></button>
+    <button data-t="debts" onclick="nav.tab('debts')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>Debts</button>
+    <button data-t="reminders" onclick="nav.tab('reminders')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>Alerts</button>
+  </nav>
+
+  <!-- ===================== ADD SHEET ===================== -->
+  <div class="backdrop" id="backdrop" onclick="if(event.target===this)closeSheet()">
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="sectionHdr" style="padding:0 4px 10px">Add new</div>
+      <div class="list" style="margin:0">
+        <div class="item" onclick="closeSheet();nav.go('addExpense')"><div class="ic" style="background:var(--magenta)">🧾</div><div class="tx"><b>Expense</b><span>Record a spend</span></div></div>
+        <div class="item" onclick="closeSheet();nav.go('addIncome')"><div class="ic" style="background:var(--teal)">💰</div><div class="tx"><b>Income</b><span>Salary, business, etc.</span></div></div>
+        <div class="item" onclick="closeSheet();nav.go('addLoan')"><div class="ic" style="background:var(--blue)">🏦</div><div class="tx"><b>Loan</b><span>EMI & money owed</span></div></div>
+        <div class="item" onclick="closeSheet();nav.go('addCard')"><div class="ic" style="background:var(--amber)">💳</div><div class="tx"><b>Credit card</b></div></div>
+        <div class="item" onclick="closeSheet();nav.go('addReminder')"><div class="ic" style="background:#7B2FF7">🔔</div><div class="tx"><b>Bill reminder</b></div></div>
+      </div>
+      <button class="btn ghost mt" onclick="closeSheet()">Cancel</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="homeIndicator"></div>
+</div>
+
+<style>
+.tog{width:44px;height:27px;border-radius:20px;background:rgba(120,120,128,.24);position:relative;flex:none;transition:.2s;cursor:pointer}
+.tog::after{content:"";position:absolute;top:2px;left:2px;width:23px;height:23px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.2s}
+.tog.on{background:var(--teal)}.tog.on::after{left:19px}
+.radio{color:var(--muted2);font-size:22px}
+.goalOpt.on{border:1.5px solid var(--magenta)}.goalOpt.on .radio{color:var(--magenta)}
+.goalOpt.on .radio::before{content:"●"}
+</style>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let stack=['welcome'];
+const tabScreens=['home','transactions','debts','reminders','profile'];
+
+const nav={
+  go(id,isTab){
+    const cur=$('.screen.active'); if(cur&&cur.id===id)return;
+    $$('.screen').forEach(s=>s.classList.remove('active'));
+    const el=document.getElementById(id); el.classList.add('active');
+    el.querySelector('.scroll')&&(el.querySelector('.scroll').scrollTop=0);
+    if(!isTab)stack.push(id);
+    // tab bar visibility
+    const authed=!['welcome','login','register','forgot','onbCurrency','onbGoal','onbNotif'].includes(id);
+    $('#tabbar').style.display=authed?'flex':'none';
+    // status bar color
+    setBar(el.dataset.bar==='light');
+    // active tab highlight
+    const t=el.dataset.tab;
+    $$('#tabbar button[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  },
+  tab(id){stack=[id];this.go(id,true);},
+  back(){stack.pop();const prev=stack[stack.length-1]||'home';this.go(prev,true);}
+};
+function setBar(light){const sb=$('#statusbar');sb.classList.toggle('light',!!light);}
+function barScroll(el){const nav=el.closest('.screen').querySelector('.nav');}
+const app_={enter(){nav.tab('home');}};
+
+function openSheet(){$('#backdrop').classList.add('on');}
+function closeSheet(){$('#backdrop').classList.remove('on');}
+function segPick(el){[...el.parentNode.children].forEach(c=>c.classList.remove('on'));el.classList.add('on');}
+function pickGoal(el){$$('.goalOpt').forEach(g=>g.classList.remove('on'));el.classList.add('on');}
+function pickPlan(el){$$('.planCard').forEach(p=>p.classList.remove('on'));el.classList.add('on');}
+function tog(el){el.classList.toggle('on');}
+let tt;
+function toast(msg){const t=$('#toast');t.innerHTML='✓ &nbsp;'+msg;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),1800);}
+
+// expose for inline handlers + tooling
+Object.assign(window,{nav,app_,openSheet,closeSheet,segPick,pickGoal,pickPlan,tog,toast});
+
+// init
+setBar(true);
+</script>
+</body>
+</html>

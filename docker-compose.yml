@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_ENV: production
+    image: money:latest
+    ports:
+      - "8080:8000"
+    environment:
+      CONTAINER_MODE: http
+      OCTANE_SERVER: frankenphp
+      RUNNING_MIGRATIONS_AND_SEEDERS: "true"
+      WITH_SCHEDULER: "true"
+      # App
+      APP_NAME: MoneyCoach
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      # Postgres (values come from .env). Use the internal host/port when the
+      # app runs on the same server/network as the database.
+      DB_CONNECTION: pgsql
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      # Queue / cache / session use the database (Postgres) by default
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+    restart: unless-stopped
