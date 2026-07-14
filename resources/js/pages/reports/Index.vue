@@ -1,0 +1,89 @@
+<script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3';
+import { ChevronLeft, ChevronRight, Download, Printer, Share2 } from '@lucide/vue';
+import { computed } from 'vue';
+import { useCurrency } from '@/composables/useCurrency';
+
+defineOptions({
+    layout: { breadcrumbs: [{ title: 'Reports', href: '/reports' }] },
+});
+
+interface Cat { category: string; amount: number; percent: number }
+
+const props = defineProps<{
+    month: string;
+    label: string;
+    prev: string;
+    next: string;
+    summary: { income: number; expense: number; net: number; savings_rate: number; count: number };
+    by_category: Cat[];
+    user_name: string;
+}>();
+
+const { fmt } = useCurrency();
+const PALETTE = ['#CC1D79', '#7B2FF7', '#06B7AD', '#F5A524', '#3B82F6', '#10B981', '#EC4899', '#94A3B8'];
+
+const printPage = () => window.print();
+
+const whatsappHref = computed(() => {
+    const text = `MoneyCoach — ${props.label}\nIncome: ₹${props.summary.income.toLocaleString('en-IN')}\nExpenses: ₹${props.summary.expense.toLocaleString('en-IN')}\nSaved: ₹${props.summary.net.toLocaleString('en-IN')} (${props.summary.savings_rate}%)`;
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+});
+</script>
+
+<template>
+    <Head title="Reports" />
+
+    <div class="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
+            <div class="flex items-center gap-2">
+                <Link :href="`/reports?month=${prev}`" class="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-muted"><ChevronLeft :size="18" /></Link>
+                <h1 class="text-lg font-extrabold">{{ label }}</h1>
+                <Link :href="`/reports?month=${next}`" class="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-muted"><ChevronRight :size="18" /></Link>
+            </div>
+            <div class="flex gap-2">
+                <a :href="`/reports/export?month=${month}`" class="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-muted"><Download :size="15" /> CSV</a>
+                <button class="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-muted" @click="printPage"><Printer :size="15" /> Print / PDF</button>
+                <a :href="whatsappHref" target="_blank" class="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white" style="background: linear-gradient(135deg, #CC1D79 0%, #06B7AD 100%)"><Share2 :size="15" /> WhatsApp</a>
+            </div>
+        </div>
+
+        <!-- Report card (printable) -->
+        <div class="rounded-2xl border border-border bg-card p-6">
+            <div class="mb-5 flex items-center justify-between border-b border-border pb-4">
+                <div>
+                    <div class="text-lg font-extrabold">MoneyCoach report</div>
+                    <div class="text-sm text-muted-foreground">{{ user_name }} · {{ label }}</div>
+                </div>
+                <img src="/moneycoach-logo.png" alt="MoneyCoach" class="h-10 w-10" />
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-4">
+                <div><div class="text-xs text-muted-foreground">Income</div><div class="mt-1 text-xl font-extrabold text-[#10B981]">{{ fmt(summary.income) }}</div></div>
+                <div><div class="text-xs text-muted-foreground">Expenses</div><div class="mt-1 text-xl font-extrabold text-[#CC1D79]">{{ fmt(summary.expense) }}</div></div>
+                <div><div class="text-xs text-muted-foreground">Net saved</div><div class="mt-1 text-xl font-extrabold">{{ fmt(summary.net) }}</div></div>
+                <div><div class="text-xs text-muted-foreground">Savings rate</div><div class="mt-1 text-xl font-extrabold">{{ summary.savings_rate }}%</div></div>
+            </div>
+
+            <div class="mt-6">
+                <div class="mb-3 font-bold">Spending by category</div>
+                <div v-if="by_category.length" class="space-y-3">
+                    <div v-for="(c, i) in by_category" :key="c.category">
+                        <div class="mb-1 flex justify-between text-sm">
+                            <span class="font-medium">{{ c.category }}</span>
+                            <span class="text-muted-foreground">{{ fmt(c.amount) }} · {{ c.percent }}%</span>
+                        </div>
+                        <div class="h-2 overflow-hidden rounded-full bg-muted">
+                            <div class="h-full rounded-full" :style="{ width: c.percent + '%', background: PALETTE[i % PALETTE.length] }" />
+                        </div>
+                    </div>
+                </div>
+                <p v-else class="text-sm text-muted-foreground">No expenses recorded this month.</p>
+            </div>
+
+            <p class="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">
+                {{ summary.count }} transactions · Generated by MoneyCoach
+            </p>
+        </div>
+    </div>
+</template>

@@ -39,6 +39,7 @@ class DatabaseSeeder extends Seeder
             ContentSeeder::class,
             SettingSeeder::class,
             DataRequestSeeder::class,
+            FinanceDemoSeeder::class,
         ]);
     }
 }
