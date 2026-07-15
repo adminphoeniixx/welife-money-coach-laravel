@@ -110,4 +110,10 @@ class Debt extends Model
     {
         return $this->hasMany(Bill::class);
     }
+
+    /** @return HasMany<DebtDocument, $this> */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(DebtDocument::class);
+    }
 }

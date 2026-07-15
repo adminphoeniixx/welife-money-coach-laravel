@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Debt;
+use App\Models\DebtDocument;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ class DebtController extends Controller
      */
     public function index(Request $request): Response
     {
-        $debts = $request->user()->debts()->where('status', 'active')->get();
+        $debts = $request->user()->debts()->with('documents')->where('status', 'active')->get();
 
         $totalCents = (int) $debts->sum('balance_cents');
         $emiCents = (int) $debts->sum('emi_cents');
@@ -43,7 +44,9 @@ class DebtController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $request->user()->debts()->create($this->validated($request));
+        $debt = $request->user()->debts()->create($this->validated($request));
+
+        $this->saveDocuments($request, $debt);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Debt added.']);
 
@@ -55,6 +58,8 @@ class DebtController extends Controller
         abort_unless($debt->user_id === $request->user()->id, 403);
 
         $debt->update($this->validated($request));
+
+        $this->saveDocuments($request, $debt);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Debt updated.']);
 
@@ -112,6 +117,25 @@ class DebtController extends Controller
     }
 
     /**
+     * Persist any photos / documents uploaded alongside the add / edit form.
+     */
+    private function saveDocuments(Request $request, Debt $debt): void
+    {
+        if (! $request->hasFile('documents')) {
+            return;
+        }
+
+        $request->validate([
+            'documents' => ['array', 'max:10'],
+            'documents.*' => ['file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+        ]);
+
+        foreach ($request->file('documents', []) as $file) {
+            DebtDocument::storeFor($debt, $file);
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function present(Debt $d): array
@@ -142,6 +166,11 @@ class DebtController extends Controller
             'amount_paid' => Money::toRupees($repayment['amount_paid_cents']),
             'remaining_amount' => Money::toRupees($repayment['remaining_cents']),
             'repayment_progress' => $repayment['progress'],
+            'documents' => $d->documents->map(fn (DebtDocument $doc) => [
+                'id' => $doc->id,
+                'name' => $doc->original_name,
+                'is_image' => $doc->isImage(),
+            ])->values(),
         ];
     }
 

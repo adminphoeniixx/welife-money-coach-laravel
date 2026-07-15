@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { CreditCard, HandCoins, Pencil, Plus, Scale, Sparkles, Trash2 } from '@lucide/vue';
-import { ref } from 'vue';
+import { CreditCard, Download, Eye, FileImage, FileText, HandCoins, Paperclip, Pencil, Plus, Scale, Sparkles, Trash2, X } from '@lucide/vue';
+import { computed, ref } from 'vue';
 import {
     Dialog,
     DialogContent,
@@ -38,6 +38,7 @@ interface DebtRow {
     amount_paid: number;
     remaining_amount: number;
     repayment_progress: number;
+    documents: { id: number; name: string; is_image: boolean }[];
 }
 
 const props = defineProps<{
@@ -67,9 +68,40 @@ const form = useForm({
     due_day: '',
     total_emis: '',
     emis_paid: '',
+    documents: [] as File[],
 });
 
-const blank = { kind: 'loan', name: '', institution: '', category: 'personal', interest_rate: '', balance: '', principal: '', emi: '', credit_limit: '', min_due: '', due_day: '', total_emis: '', emis_paid: '' };
+const blank = { kind: 'loan', name: '', institution: '', category: 'personal', interest_rate: '', balance: '', principal: '', emi: '', credit_limit: '', min_due: '', due_day: '', total_emis: '', emis_paid: '', documents: [] as File[] };
+
+// Live repayment preview inside the add / edit dialog, so the split between
+// what's paid off and what's still outstanding is visible right on the form.
+const preview = computed(() => {
+    const principal = parseFloat(form.principal || form.balance || '0');
+    const balance = parseFloat(form.balance || '0');
+    const paid = Math.max(0, principal - balance);
+    const totalEmis = parseInt(form.total_emis || '0');
+    const emisPaid = Math.min(parseInt(form.emis_paid || '0'), totalEmis || Infinity);
+    const progress = totalEmis
+        ? Math.round((emisPaid / totalEmis) * 100)
+        : principal > 0
+          ? Math.round((paid / principal) * 100)
+          : 0;
+    return {
+        show: form.kind === 'loan' && balance > 0 && principal > 0,
+        paid,
+        remaining: balance,
+        progress: Math.min(100, Math.max(0, progress)),
+        totalEmis,
+        emisPaid,
+        remainingEmis: totalEmis ? Math.max(0, totalEmis - emisPaid) : null,
+    };
+});
+
+const pickDocs = (e: Event) => {
+    const files = (e.target as HTMLInputElement).files;
+    if (files) form.documents = [...form.documents, ...Array.from(files)];
+};
+const removeDoc = (i: number) => form.documents.splice(i, 1);
 
 const openAdd = (kind: string) => {
     editingId.value = null;
@@ -95,14 +127,17 @@ const openEdit = (d: DebtRow) => {
         due_day: d.due_day != null ? String(d.due_day) : '',
         total_emis: d.total_emis != null ? String(d.total_emis) : '',
         emis_paid: d.emis_paid ? String(d.emis_paid) : '',
+        documents: [] as File[],
     });
     form.reset();
     open.value = true;
 };
 const submit = () => {
-    const opts = { preserveScroll: true, onSuccess: () => (open.value = false) };
-    if (editingId.value) form.put(`/debts/${editingId.value}`, opts);
-    else form.post('/debts', opts);
+    const opts = { preserveScroll: true, forceFormData: true, onSuccess: () => (open.value = false) };
+    // Files force a multipart POST; PHP can't parse multipart on PUT, so spoof
+    // the method via a body field that Laravel routing understands.
+    if (editingId.value) form.transform((data) => ({ ...data, _method: 'put' })).post(`/debts/${editingId.value}`, opts);
+    else form.transform((data) => data).post('/debts', opts);
 };
 
 // record payment
@@ -122,6 +157,26 @@ const del = useForm({});
 const confirmDelete = () => {
     if (!deleteTarget.value) return;
     del.delete(`/debts/${deleteTarget.value.id}`, { preserveScroll: true, onSuccess: () => (deleteTarget.value = null) });
+};
+
+// attach documents to an existing loan / card
+const attachForm = useForm({ documents: [] as File[] });
+const attachToDebt = (debtId: number, e: Event) => {
+    const files = (e.target as HTMLInputElement).files;
+    if (!files || !files.length) return;
+    attachForm.documents = Array.from(files);
+    attachForm.post(`/debts/${debtId}/documents`, {
+        preserveScroll: true,
+        forceFormData: true,
+        onFinish: () => attachForm.reset(),
+    });
+    (e.target as HTMLInputElement).value = '';
+};
+
+// delete a single attachment
+const docDeleteForm = useForm({});
+const deleteDoc = (docId: number) => {
+    docDeleteForm.delete(`/debt-documents/${docId}`, { preserveScroll: true });
 };
 </script>
 
@@ -208,6 +263,26 @@ const confirmDelete = () => {
                             <div class="h-full rounded-full transition-all" :style="{ width: d.repayment_progress + '%', background: 'linear-gradient(90deg,#CC1D79,#06B7AD)' }" />
                         </div>
                         <div class="mt-1 text-[11px] font-semibold text-[#06B7AD]">{{ d.repayment_progress }}% repaid</div>
+                    </div>
+                    <!-- Loan documents / photos (sanction letter, agreement, statements…) -->
+                    <div class="mt-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-muted-foreground">Documents & photos</span>
+                            <label class="flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-[#CC1D79] hover:bg-[#CC1D79]/10">
+                                <Paperclip :size="12" /> Attach
+                                <input type="file" multiple accept="image/*,.pdf" class="hidden" @change="(e) => attachToDebt(d.id, e)" />
+                            </label>
+                        </div>
+                        <div v-if="d.documents.length" class="mt-2 flex flex-wrap gap-1.5">
+                            <span v-for="doc in d.documents" :key="doc.id" class="group/doc flex items-center gap-1 rounded-lg border border-border bg-muted/40 py-1 pl-2 pr-1 text-xs">
+                                <component :is="doc.is_image ? FileImage : FileText" :size="12" class="flex-none text-muted-foreground" />
+                                <span class="max-w-28 truncate">{{ doc.name }}</span>
+                                <a :href="`/debt-documents/${doc.id}/view`" target="_blank" class="grid h-5 w-5 place-items-center rounded text-muted-foreground hover:bg-background hover:text-[#06B7AD]" title="View"><Eye :size="12" /></a>
+                                <a :href="`/debt-documents/${doc.id}/download`" class="grid h-5 w-5 place-items-center rounded text-muted-foreground hover:bg-background" title="Download"><Download :size="12" /></a>
+                                <button class="grid h-5 w-5 place-items-center rounded text-muted-foreground hover:bg-background hover:text-[#CC1D79]" title="Remove" @click="deleteDoc(doc.id)"><X :size="12" /></button>
+                            </span>
+                        </div>
+                        <div v-else class="mt-1.5 text-xs text-muted-foreground">No documents yet · attach a photo or PDF.</div>
                     </div>
                     <div class="mt-3 flex items-center justify-end gap-1">
                         <button class="flex items-center gap-1 rounded-lg bg-[#06B7AD]/10 px-2.5 py-1 text-xs font-semibold text-[#06B7AD]" @click="payTarget = d"><HandCoins :size="13" /> Record EMI</button>
@@ -320,6 +395,38 @@ const confirmDelete = () => {
                         <input v-model="form.emis_paid" type="number" min="0" max="1000" placeholder="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                         <InputError :message="form.errors.emis_paid" class="mt-1" />
                     </div>
+                </div>
+
+                <!-- Live repayment preview: how much is already repaid vs still outstanding -->
+                <div v-if="preview.show" class="rounded-xl bg-muted/40 p-3">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-muted-foreground">Repaid so far · <b class="text-[#06B7AD]">{{ fmt(preview.paid) }}</b></span>
+                        <span class="text-muted-foreground">Still outstanding · <b class="text-[#CC1D79]">{{ fmt(preview.remaining) }}</b></span>
+                    </div>
+                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                        <div class="h-full rounded-full transition-all" :style="{ width: preview.progress + '%', background: 'linear-gradient(90deg,#CC1D79,#06B7AD)' }" />
+                    </div>
+                    <div class="mt-1 flex justify-between text-[11px] font-semibold">
+                        <span class="text-[#06B7AD]">{{ preview.progress }}% repaid</span>
+                        <span v-if="preview.remainingEmis !== null" class="text-muted-foreground">{{ preview.emisPaid }}/{{ preview.totalEmis }} EMIs · {{ preview.remainingEmis }} left</span>
+                    </div>
+                </div>
+
+                <!-- Attach loan documents / photos -->
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium">{{ form.kind === 'loan' ? 'Loan documents' : 'Card documents' }} / photos <span class="font-normal text-muted-foreground">(optional)</span></label>
+                    <label class="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-input bg-background px-3 py-3 text-sm text-muted-foreground hover:border-[#CC1D79] hover:text-[#CC1D79]">
+                        <Paperclip :size="15" /> Add photos or PDFs (sanction letter, agreement, statement…)
+                        <input type="file" multiple accept="image/*,.pdf" class="hidden" @change="pickDocs" />
+                    </label>
+                    <div v-if="form.documents.length" class="mt-2 space-y-1.5">
+                        <div v-for="(f, i) in form.documents" :key="i" class="flex items-center gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs">
+                            <FileText :size="13" class="flex-none text-muted-foreground" />
+                            <span class="flex-1 truncate">{{ f.name }}</span>
+                            <button type="button" class="grid h-5 w-5 place-items-center rounded text-muted-foreground hover:text-[#CC1D79]" @click="removeDoc(i)"><X :size="13" /></button>
+                        </div>
+                    </div>
+                    <InputError :message="form.errors.documents" class="mt-1" />
                 </div>
                 <DialogFooter>
                     <button type="submit" :disabled="form.processing" class="w-full rounded-xl py-2.5 font-semibold text-white disabled:opacity-60" style="background: linear-gradient(135deg, #CC1D79 0%, #06B7AD 100%)">

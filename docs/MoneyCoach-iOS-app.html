@@ -805,7 +805,19 @@ body{
       <div class="field"><label>Original amount</label><input inputmode="numeric" placeholder="₹ 8,50,000"/></div>
       <div class="field"><label>Outstanding balance</label><input inputmode="numeric" placeholder="₹ 2,10,000"/></div>
       <div class="grid2"><div class="field"><label>Interest %</label><input inputmode="decimal" placeholder="8.4"/></div><div class="field"><label>EMI</label><input inputmode="numeric" placeholder="₹15,600"/></div></div>
+      <div class="grid2"><div class="field"><label>Total EMIs (tenure)</label><input inputmode="numeric" placeholder="240"/></div><div class="field"><label>EMIs already paid</label><input inputmode="numeric" placeholder="30"/></div></div>
       <div class="field"><label>Next due date</label><input placeholder="23 Jul 2026"/></div>
+      <!-- Repaid vs outstanding preview -->
+      <div class="card" style="margin-top:4px">
+        <div class="row between"><span class="muted small">Repaid so far</span><b class="pos">₹6,40,000</b></div>
+        <div class="row between mt"><span class="muted small">Still outstanding</span><b style="color:var(--magenta)">₹2,10,000</b></div>
+        <div class="bar mt2"><i style="width:75%;background:var(--grad)"></i></div>
+        <div class="muted tiny mt">75% repaid · 210 of 240 EMIs done</div>
+      </div>
+      <!-- Attach documents / photos -->
+      <div class="field"><label>Loan documents &amp; photos</label>
+        <button class="btn ghost" onclick="toast('Choose photos or PDF')">📎 Attach sanction letter, agreement, statement…</button>
+      </div>
       <div class="list" style="margin:0"><div class="item"><div class="tx"><b>Remind me before EMI</b></div><span class="tog on" onclick="tog(this)"></span></div></div>
     </div>
   </section>

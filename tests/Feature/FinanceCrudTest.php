@@ -10,7 +10,9 @@ use App\Models\FinanceAccount;
 use App\Models\Goal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class FinanceCrudTest extends TestCase
@@ -97,6 +99,46 @@ class FinanceCrudTest extends TestCase
         $debt->refresh();
         $this->assertSame(3, $debt->emis_paid);
         $this->assertSame('closed', $debt->status);
+    }
+
+    public function test_loan_documents_can_be_attached_viewed_and_removed(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+        $debt = $user->debts()->create([
+            'name' => 'Home Loan', 'kind' => 'loan', 'balance_cents' => 5000000,
+            'interest_rate' => 8.4, 'emi_cents' => 1560000, 'status' => 'active',
+        ]);
+
+        // Attach a photo and a PDF to the loan.
+        $this->actingAs($user)->post(route('debts.documents.store', $debt), [
+            'documents' => [
+                UploadedFile::fake()->image('sanction.jpg'),
+                UploadedFile::fake()->create('agreement.pdf', 40, 'application/pdf'),
+            ],
+        ])->assertRedirect();
+
+        $this->assertSame(2, $debt->documents()->count());
+        $doc = $debt->documents()->first();
+        // Stored encrypted at rest, not as the raw upload.
+        Storage::disk('local')->assertExists($doc->path);
+        $this->assertStringEndsWith('.enc', $doc->path);
+
+        // Owner can view; the decrypted stream comes back.
+        $this->actingAs($user)->get(route('debts.documents.view', $doc))->assertOk();
+
+        // Another user cannot touch it.
+        $this->actingAs(User::factory()->create())
+            ->get(route('debts.documents.download', $doc))->assertForbidden();
+
+        // Index exposes the attachments to the page.
+        $this->actingAs($user)->get(route('debts.index'))->assertInertia(fn ($p) => $p
+            ->where('loans.0.documents', fn ($docs) => count($docs) === 2));
+
+        // Remove one attachment; its blob is deleted too.
+        $this->actingAs($user)->delete(route('debts.documents.destroy', $doc))->assertRedirect();
+        $this->assertSame(1, $debt->documents()->count());
+        Storage::disk('local')->assertMissing($doc->path);
     }
 
     public function test_debt_and_asset_creation(): void

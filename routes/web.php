@@ -8,6 +8,7 @@ use App\Http\Controllers\ChallengeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtCoachController;
 use App\Http\Controllers\DebtController;
+use App\Http\Controllers\DebtDocumentController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\GoalController;
@@ -37,6 +38,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('debts/{debt}', [DebtController::class, 'update'])->name('debts.update');
     Route::delete('debts/{debt}', [DebtController::class, 'destroy'])->name('debts.destroy');
     Route::post('debts/{debt}/payment', [DebtController::class, 'recordPayment'])->name('debts.payment');
+    // Loan / card attachments (photos, documents) — encrypted at rest.
+    Route::post('debts/{debt}/documents', [DebtDocumentController::class, 'store'])->name('debts.documents.store');
+    Route::get('debt-documents/{document}/view', [DebtDocumentController::class, 'view'])->name('debts.documents.view');
+    Route::get('debt-documents/{document}/download', [DebtDocumentController::class, 'download'])->name('debts.documents.download');
+    Route::delete('debt-documents/{document}', [DebtDocumentController::class, 'destroy'])->name('debts.documents.destroy');
     Route::get('coach', [DebtCoachController::class, 'index'])->name('coach.index');
 
     // Assets / Net Worth
