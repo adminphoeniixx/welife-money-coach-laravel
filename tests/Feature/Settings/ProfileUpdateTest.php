@@ -4,11 +4,44 @@ namespace Tests\Feature\Settings;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_profile_photo_can_be_uploaded_and_removed()
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        // Upload a photo.
+        $this->actingAs($user)->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'photo' => UploadedFile::fake()->image('me.jpg'),
+        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.edit'));
+
+        $user->refresh();
+        $this->assertNotNull($user->avatar_path);
+        Storage::disk('public')->assertExists($user->avatar_path);
+        $this->assertNotNull($user->avatar_url);
+        $path = $user->avatar_path;
+
+        // Remove it — flag set, file deleted, column cleared.
+        $this->actingAs($user)->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'remove_photo' => '1',
+        ])->assertSessionHasNoErrors();
+
+        $user->refresh();
+        $this->assertNull($user->avatar_path);
+        $this->assertNull($user->avatar_url);
+        Storage::disk('public')->assertMissing($path);
+    }
 
     public function test_profile_page_is_displayed()
     {

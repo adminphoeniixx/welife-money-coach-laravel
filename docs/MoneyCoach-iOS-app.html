@@ -218,6 +218,29 @@ body{
 .toast{position:absolute;left:16px;right:16px;bottom:calc(80px + var(--safe-bottom));z-index:90;background:rgba(28,28,30,.95);color:#fff;padding:14px 16px;border-radius:14px;font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;transform:translateY(20px);opacity:0;pointer-events:none;transition:.3s}
 .toast.on{transform:none;opacity:1}
 .homeIndicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:135px;height:5px;border-radius:5px;background:rgba(0,0,0,.3);z-index:80}
+/* calendar day cells */
+.calDot,.calToday{position:relative;display:grid;place-items:center;height:30px;border-radius:9px}
+.calDot::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--magenta)}
+.calToday{background:var(--grad);color:#fff;font-weight:700}
+/* home feature tiles */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tile{border:none;background:none;cursor:pointer;font-family:var(--font);display:flex;flex-direction:column;align-items:center;gap:6px}
+.tile .tico{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:22px;background:var(--grad-soft)}
+.tile .tlbl{font-size:11px;font-weight:600;color:var(--ink);text-align:center;line-height:1.2}
+/* health score ring */
+.hscore{display:flex;align-items:center;gap:16px}
+.hscore .num{font-size:26px;font-weight:800}
+/* dedicated amount input box (expense / income) */
+.amtBox{display:block;background:var(--card);border:2px solid var(--magenta);border-radius:18px;padding:13px 18px 12px;box-shadow:0 8px 20px -12px rgba(204,29,121,.45);cursor:text}
+.amtBox.inc{border-color:var(--teal);box-shadow:0 8px 20px -12px rgba(6,183,173,.45)}
+.amtBox:focus-within{box-shadow:0 0 0 4px rgba(204,29,121,.14),0 8px 20px -12px rgba(204,29,121,.45)}
+.amtBox.inc:focus-within{box-shadow:0 0 0 4px rgba(6,183,173,.14),0 8px 20px -12px rgba(6,183,173,.45)}
+.amtLbl{font-size:13px;font-weight:600;color:var(--muted)}
+.amtRow{display:flex;align-items:baseline;gap:5px;margin-top:3px}
+.amtCur{font-size:34px;font-weight:800;line-height:1;color:var(--magenta)}
+.amtInput{flex:1;width:100%;min-width:0;font-size:40px;font-weight:800;color:var(--magenta);border:none;background:transparent;outline:none;padding:0;font-family:inherit;line-height:1.05;caret-color:var(--magenta)}
+.amtBox.inc .amtCur,.amtBox.inc .amtInput{color:var(--teal);caret-color:var(--teal)}
+.amtHint{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted2);margin-top:7px}
 </style>
 </head>
 <body>
@@ -378,8 +401,28 @@ body{
         <button onclick="nav.go('debtCoach')"><span class="qtile grad"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/></svg></span><span class="qlbl">Debt Coach</span></button>
       </div>
 
+      <!-- financial health score -->
+      <div class="pad">
+        <div class="card hscore" onclick="nav.go('insights')">
+          <svg width="88" height="88" viewBox="0 0 120 120" style="flex:none">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(0,0,0,.08)" stroke-width="12"/>
+            <circle cx="60" cy="60" r="52" fill="none" stroke="url(#hg)" stroke-width="12" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="58.8" transform="rotate(-90 60 60)"/>
+            <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#CC1D79"/><stop offset="1" stop-color="#06B7AD"/></linearGradient></defs>
+            <text x="60" y="56" text-anchor="middle" style="font-size:30px;font-weight:800;fill:var(--ink)">82</text>
+            <text x="60" y="76" text-anchor="middle" style="font-size:13px;fill:var(--muted2)">/ 100</text>
+          </svg>
+          <div>
+            <div class="muted small">Financial Health Score</div>
+            <div style="display:flex;align-items:center;gap:7px;margin-top:3px"><span style="width:9px;height:9px;border-radius:50%;background:var(--teal);display:inline-block"></span><b style="font-size:17px">Good</b></div>
+            <div class="muted tiny mt">Strong savings rate · trim card use to reach Excellent</div>
+          </div>
+        </div>
+      </div>
+
       <!-- quick stats -->
       <div class="grid2 pad">
+        <div class="stat"><div class="k">Net worth</div><div class="v pos">₹ 12,84,000</div><div class="small muted" onclick="nav.go('networth')" style="color:var(--magenta)">View assets ›</div></div>
+        <div class="stat"><div class="k">Total assets</div><div class="v">₹ 16,02,000</div><div class="small muted">bank, gold, FD…</div></div>
         <div class="stat"><div class="k">Total debt</div><div class="v neg">₹ 3,18,000</div><div class="small muted">across 4 accounts</div></div>
         <div class="stat"><div class="k">Monthly EMIs</div><div class="v">₹ 24,800</div><div class="small muted">29% of income</div></div>
       </div>
@@ -390,6 +433,23 @@ body{
           <div class="row between"><span class="badge" style="background:rgba(255,255,255,.22);color:#fff">⚡ Priority</span><span class="small" style="opacity:.85">Debt Coach</span></div>
           <div style="font-size:17px;font-weight:700;margin-top:10px">Pay ₹5,000 extra on your HDFC Card</div>
           <div class="small" style="opacity:.9;margin-top:4px">Highest interest (42%) — saves ₹18,400 & clears 3 months sooner.</div>
+        </div>
+      </div>
+
+      <!-- AI financial tips -->
+      <div class="row between" style="padding:20px 20px 8px"><b>💡 AI Financial Tips</b><span class="link small" onclick="nav.go('notifications')">More</span></div>
+      <div class="pad" style="padding-top:0;display:flex;flex-direction:column;gap:10px">
+        <div class="card" style="display:flex;gap:12px;align-items:flex-start;border-left:3px solid var(--teal)">
+          <span style="font-size:20px">🍽️</span>
+          <div><b class="small">You can save ₹3,000 this month</b><div class="muted small" style="margin-top:2px">by reducing dining-out expenses — you're ₹3,000 over your usual food budget.</div></div>
+        </div>
+        <div class="card" style="display:flex;gap:12px;align-items:flex-start;border-left:3px solid var(--magenta)">
+          <span style="font-size:20px">💳</span>
+          <div><b class="small">HDFC Card utilisation is above 80%</b><div class="muted small" style="margin-top:2px">Consider paying it down — high usage hurts your credit score.</div></div>
+        </div>
+        <div class="card" style="display:flex;gap:12px;align-items:flex-start;border-left:3px solid var(--amber)" onclick="nav.go('debtCoach')">
+          <span style="font-size:20px">🎯</span>
+          <div><b class="small">Pay your HDFC Credit Card first</b><div class="muted small" style="margin-top:2px">It has the highest interest (42%) — clearing it first saves the most money.</div></div>
         </div>
       </div>
 
@@ -413,6 +473,25 @@ body{
             <div class="legend"><span class="dot" style="background:var(--amber)"></span>Transport <b style="margin-left:auto">14%</b></div>
             <div class="legend"><span class="dot" style="background:var(--blue)"></span>Other <b style="margin-left:auto">12%</b></div>
           </div>
+        </div>
+      </div>
+
+      <!-- coach tools -->
+      <div class="row between" style="padding:20px 20px 8px"><b>Coach &amp; tools</b></div>
+      <div class="pad" style="padding-top:0">
+        <div class="tiles">
+          <button class="tile" onclick="nav.go('networth')"><span class="tico">⚖️</span><span class="tlbl">Net Worth</span></button>
+          <button class="tile" onclick="nav.go('budgets')"><span class="tico">📊</span><span class="tlbl">Budgets</span></button>
+          <button class="tile" onclick="nav.go('emergency')"><span class="tico">🛟</span><span class="tlbl">Emergency</span></button>
+          <button class="tile" onclick="nav.go('challenges')"><span class="tico">🎯</span><span class="tlbl">Challenges</span></button>
+          <button class="tile" onclick="nav.go('subs')"><span class="tico">🔁</span><span class="tlbl">Subscriptions</span></button>
+          <button class="tile" onclick="nav.go('family')"><span class="tico">👨‍👩‍👧</span><span class="tlbl">Family</span></button>
+          <button class="tile" onclick="nav.go('calendar')"><span class="tico">📅</span><span class="tlbl">Calendar</span></button>
+          <button class="tile" onclick="nav.go('achievements')"><span class="tico">🏆</span><span class="tlbl">Awards</span></button>
+          <button class="tile" onclick="nav.go('notifications')"><span class="tico">🔔</span><span class="tlbl">Alerts</span></button>
+          <button class="tile" onclick="nav.go('search')"><span class="tico">🔍</span><span class="tlbl">Search</span></button>
+          <button class="tile" onclick="nav.go('vaultLock')"><span class="tico">🔒</span><span class="tlbl">Vault</span></button>
+          <button class="tile" onclick="nav.go('insights')"><span class="tico">📈</span><span class="tlbl">Reports</span></button>
         </div>
       </div>
 
@@ -521,10 +600,17 @@ body{
       <div class="pad">
         <div class="card center">
           <div class="ic" style="background:var(--blue);width:52px;height:52px;font-size:24px;margin:0 auto;border-radius:16px">🏠</div>
-          <h2 class="mt" style="font-size:22px;font-weight:800">₹2,10,000</h2>
-          <div class="muted small">outstanding of ₹8,50,000</div>
+          <div class="muted small mt">Left to pay</div>
+          <h2 style="font-size:26px;font-weight:800;color:var(--magenta);line-height:1.1">₹2,10,000</h2>
+          <div class="muted tiny">of ₹8,50,000 total loan</div>
           <div class="bar mt2"><i style="width:75%;background:var(--grad)"></i></div>
-          <div class="muted tiny mt">75% paid off</div>
+          <div style="font-size:12px;font-weight:700;color:var(--teal);margin-top:6px">75% repaid</div>
+          <!-- clear paid / left / total breakdown -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);margin-top:14px;text-align:center">
+            <div><div style="font-size:16px;font-weight:800;color:var(--teal)">₹6,40,000</div><div class="tiny muted">Paid</div></div>
+            <div style="border-left:1px solid var(--sep);border-right:1px solid var(--sep)"><div style="font-size:16px;font-weight:800;color:var(--magenta)">₹2,10,000</div><div class="tiny muted">Left</div></div>
+            <div><div style="font-size:16px;font-weight:800">₹8,50,000</div><div class="tiny muted">Total loan</div></div>
+          </div>
         </div>
       </div>
       <div class="grid2 pad" style="padding-top:0">
@@ -632,7 +718,10 @@ body{
     <div class="nav blur"><span class="back" style="opacity:0">‹</span><span class="title">Profile</span><span class="act"></span></div>
     <div class="scroll hasTab">
       <div class="pad center">
-        <div class="avatar" style="width:76px;height:76px;font-size:26px;margin:6px auto 0">RS</div>
+        <div style="position:relative;width:76px;margin:6px auto 0">
+          <div class="avatar" style="width:76px;height:76px;font-size:26px">RS</div>
+          <span onclick="nav.go('editProfile')" style="position:absolute;bottom:-2px;right:-2px;width:28px;height:28px;border-radius:50%;background:var(--grad);display:grid;place-items:center;border:2px solid var(--card);cursor:pointer;font-size:13px">📷</span>
+        </div>
         <h2 class="mt" style="font-size:22px;font-weight:800">Rahul Sharma</h2>
         <div class="muted small">rahul@example.com</div>
         <span class="badge mag" style="margin-top:8px">Free plan</span>
@@ -645,7 +734,7 @@ body{
       </div>
       <div class="sectionHdr">Account</div>
       <div class="list">
-        <div class="item" onclick="toast('Edit profile')"><div class="ic" style="background:var(--blue)">👤</div><div class="tx"><b>Edit profile</b></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+        <div class="item" onclick="nav.go('editProfile')"><div class="ic" style="background:var(--blue)">👤</div><div class="tx"><b>Edit profile</b><span>Name, email &amp; photo</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
         <div class="item" onclick="nav.go('setRegion')"><div class="ic" style="background:var(--teal)">🌐</div><div class="tx"><b>Currency & region</b><span>INR · India</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
         <div class="item" onclick="nav.go('setNotif')"><div class="ic" style="background:var(--amber)">🔔</div><div class="tx"><b>Notifications</b></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
         <div class="item" onclick="nav.go('setSecurity')"><div class="ic" style="background:var(--magenta)">🔒</div><div class="tx"><b>Security</b><span>Face ID · 2FA on</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
@@ -721,6 +810,42 @@ body{
         <div class="item" onclick="toast('Passkey added')"><div class="ic" style="background:var(--blue)">🔑</div><div class="tx"><b>Passkeys</b><span>1 device</span></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
         <div class="item" onclick="toast('Change password')"><div class="ic" style="background:var(--magenta)">🔒</div><div class="tx"><b>Change password</b></div><svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
       </div>
+      <div class="sectionHdr">Documents Vault</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:#7B2FF7">🙂</div><div class="tx"><b>Face ID / Fingerprint</b><span>Unlock the vault with biometrics</span></div><span class="tog on" onclick="tog(this)"></span></div>
+        <div class="item"><div class="ic" style="background:var(--magenta)">🔢</div><div class="tx"><b>Vault PIN</b><span>6-digit backup code</span></div><span class="tog on" onclick="tog(this)"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== EDIT PROFILE ===================== -->
+  <section class="screen" id="editProfile">
+    <div class="nav blur"><span class="back" onclick="nav.back()">Cancel</span><span class="title">Edit profile</span><span class="act strong" onclick="toast('Profile saved');setTimeout(()=>nav.back(),700)">Save</span></div>
+    <div class="scroll pad">
+      <div class="center">
+        <div style="position:relative;width:96px;margin:6px auto 6px">
+          <div class="avatar" style="width:96px;height:96px;font-size:34px">RS</div>
+          <span onclick="toast('Choose photo or take a picture')" style="position:absolute;bottom:2px;right:2px;width:32px;height:32px;border-radius:50%;background:var(--grad);display:grid;place-items:center;border:2px solid var(--card);cursor:pointer">📷</span>
+        </div>
+        <button class="btn ghost" style="width:auto;padding:8px 18px;font-size:14px" onclick="toast('Choose photo or take a picture')">📷 Change photo</button>
+        <div style="margin-top:8px"><span class="link small" onclick="toast('Photo removed')">Remove photo</span></div>
+      </div>
+      <div class="field mt"><label>Full name</label><input value="Rahul Sharma"/></div>
+      <div class="field"><label>Email</label><input type="email" value="rahul@example.com"/></div>
+      <div class="field"><label>Phone</label><input inputmode="tel" value="+91 98765 43210"/></div>
+    </div>
+  </section>
+
+  <!-- ===================== VAULT LOCK (biometric) ===================== -->
+  <section class="screen" id="vaultLock">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Documents Vault</span><span class="act"></span></div>
+    <div class="scroll pad" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+      <div style="font-size:64px;margin-top:30px">🔒</div>
+      <b style="font-size:19px;margin-top:10px">Vault locked</b>
+      <div class="muted small" style="margin-top:4px;max-width:240px">Your documents are protected. Unlock with Face ID, Fingerprint or your PIN.</div>
+      <button class="btn primary" style="margin-top:26px" onclick="toast('🙂 Scanning Face ID…');setTimeout(()=>nav.go('vault'),1000)">🙂 Unlock with Face ID</button>
+      <button class="btn ghost mt" onclick="toast('👆 Touch the sensor…');setTimeout(()=>nav.go('vault'),1000)">👆 Use Fingerprint</button>
+      <button class="btn ghost mt" onclick="toast('Enter your 6-digit PIN');setTimeout(()=>nav.go('vault'),700)">🔢 Enter PIN instead</button>
     </div>
   </section>
 
@@ -756,21 +881,18 @@ body{
   <section class="screen" id="addExpense">
     <div class="nav blur"><span class="back" onclick="nav.back()">Cancel</span><span class="title">New expense</span><span class="act strong" onclick="toast('Expense saved');setTimeout(()=>nav.back(),700)">Save</span></div>
     <div class="scroll pad">
-      <div class="card center" style="background:var(--grad-soft);cursor:text" onclick="this.querySelector('input').focus()">
-        <div class="muted small">Amount</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:1px;margin-top:4px">
-          <span style="font-size:40px;font-weight:800;color:var(--magenta);line-height:1">−₹</span>
-          <input type="text" inputmode="decimal" value="640" placeholder="0" aria-label="Expense amount" autofocus
-            oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1');this.style.width=Math.max(1,this.value.length)+'ch'"
-            style="width:3ch;max-width:100%;font-size:40px;font-weight:800;color:var(--magenta);border:none;background:transparent;outline:none;padding:0;font-family:inherit;line-height:1;text-align:left"/>
-        </div>
-      </div>
+      <label class="amtBox" for="expAmt">
+        <span class="amtLbl">Amount</span>
+        <div class="amtRow"><span class="amtCur">−₹</span><input id="expAmt" class="amtInput" type="text" inputmode="decimal" value="640" placeholder="0" aria-label="Expense amount" autofocus oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"/></div>
+        <span class="amtHint">⌨️ Tap to type · numeric keypad</span>
+      </label>
       <div class="field mt"><label>Category</label><select><option>Food · Dining out</option><option>Housing · Rent</option><option>Transport · Fuel</option><option>Loans · EMI</option><option>Utilities</option><option>Healthcare</option><option>Entertainment</option></select></div>
       <div class="field"><label>Paid to</label><input placeholder="e.g. Swiggy"/></div>
       <div class="field"><label>Date</label><input value="20 Jul 2026"/></div>
       <div class="field"><label>Payment method</label><select><option>HDFC Debit Card</option><option>UPI</option><option>Cash</option><option>Credit Card</option></select></div>
       <div class="field"><label>Note (optional)</label><input placeholder="Add a note"/></div>
       <div class="list" style="margin:0 0 12px"><div class="item"><div class="tx"><b>Recurring</b><span>Repeat monthly</span></div><span class="tog" onclick="tog(this)"></span></div><div class="item"><div class="tx"><b>Remind me before due</b></div><span class="tog" onclick="tog(this)"></span></div></div>
+      <button class="btn ghost" style="margin-bottom:10px" onclick="toast('🎤 Listening… “I spent ₹500 on fuel”')">🎤 Add by voice</button>
       <button class="btn ghost">📎 Attach receipt</button>
     </div>
   </section>
@@ -779,15 +901,11 @@ body{
   <section class="screen" id="addIncome">
     <div class="nav blur"><span class="back" onclick="nav.back()">Cancel</span><span class="title">New income</span><span class="act strong" onclick="toast('Income saved');setTimeout(()=>nav.back(),700)">Save</span></div>
     <div class="scroll pad">
-      <div class="card center" style="background:var(--grad-soft);cursor:text" onclick="this.querySelector('input').focus()">
-        <div class="muted small">Amount</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:1px;margin-top:4px">
-          <span style="font-size:40px;font-weight:800;color:var(--teal);line-height:1">+₹</span>
-          <input type="text" inputmode="decimal" value="85000" placeholder="0" aria-label="Income amount"
-            oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1');this.style.width=Math.max(1,this.value.length)+'ch'"
-            style="width:5ch;max-width:100%;font-size:40px;font-weight:800;color:var(--teal);border:none;background:transparent;outline:none;padding:0;font-family:inherit;line-height:1;text-align:left"/>
-        </div>
-      </div>
+      <label class="amtBox inc" for="incAmt">
+        <span class="amtLbl">Amount</span>
+        <div class="amtRow"><span class="amtCur">+₹</span><input id="incAmt" class="amtInput" type="text" inputmode="decimal" value="85000" placeholder="0" aria-label="Income amount" oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"/></div>
+        <span class="amtHint">⌨️ Tap to type · numeric keypad</span>
+      </label>
       <div class="field mt"><label>Category</label><select><option>Salary</option><option>Business</option><option>Freelance</option><option>Rent received</option><option>Interest / Dividends</option><option>Bonus</option><option>Cashback / Refund</option></select></div>
       <div class="field"><label>Received from</label><input placeholder="e.g. Infosys Ltd"/></div>
       <div class="field"><label>Date</label><input value="19 Jul 2026"/></div>
@@ -845,6 +963,232 @@ body{
       <div class="field"><label>Due date</label><input placeholder="24 Jul 2026"/></div>
       <div class="field"><label>Repeat</label><select><option>One time</option><option>Monthly</option><option>Weekly</option><option>Yearly</option></select></div>
       <div class="field"><label>Remind me</label><select><option>1 day before</option><option>3 days before</option><option>5 days before</option><option>7 days before</option></select></div>
+    </div>
+  </section>
+
+  <!-- ===================== NET WORTH ===================== -->
+  <section class="screen" id="networth">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Net Worth</span><span class="act strong" onclick="toast('Add asset')">＋</span></div>
+    <div class="scroll">
+      <div class="pad">
+        <div class="card center" style="background:var(--grad);color:#fff">
+          <div class="small" style="opacity:.85">Total net worth</div>
+          <h2 style="font-size:28px;font-weight:800;margin-top:4px">₹ 12,84,000</h2>
+          <div class="row between mt2" style="font-size:13px"><span style="opacity:.9">▲ Assets ₹16,02,000</span><span style="opacity:.9">▼ Debts ₹3,18,000</span></div>
+        </div>
+      </div>
+      <div class="sectionHdr">Assets</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--teal)">🏦</div><div class="tx"><b>Bank balance</b><span>HDFC + SBI</span></div><div class="amt pos">₹3,20,000</div></div>
+        <div class="item"><div class="ic" style="background:var(--amber)">🥇</div><div class="tx"><b>Gold</b><span>~85 g</span></div><div class="amt pos">₹5,80,000</div></div>
+        <div class="item"><div class="ic" style="background:#7B2FF7">🏦</div><div class="tx"><b>Fixed deposit</b><span>Matures 2027</span></div><div class="amt pos">₹3,00,000</div></div>
+        <div class="item"><div class="ic" style="background:var(--blue)">📈</div><div class="tx"><b>Mutual funds</b><span>SIP</span></div><div class="amt pos">₹2,40,000</div></div>
+        <div class="item"><div class="ic" style="background:var(--magenta)">📊</div><div class="tx"><b>Stocks</b><span>Zerodha</span></div><div class="amt pos">₹1,62,000</div></div>
+      </div>
+      <div class="pad"><button class="btn primary" onclick="toast('Add asset')">Add asset</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== EMERGENCY FUND ===================== -->
+  <section class="screen" id="emergency">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Emergency Fund</span><span class="act"></span></div>
+    <div class="scroll">
+      <div class="pad">
+        <div class="card center">
+          <h2 style="font-size:26px;font-weight:800">₹1,75,000</h2>
+          <div class="muted small">of ₹3,00,000 goal</div>
+          <div class="bar mt2"><i style="width:58%;background:var(--grad)"></i></div>
+          <div class="muted tiny mt">58% funded · covers ~3.5 months of expenses</div>
+        </div>
+      </div>
+      <div class="grid2 pad" style="padding-top:0">
+        <div class="stat"><div class="k">Saved</div><div class="v pos">₹1,75,000</div></div>
+        <div class="stat"><div class="k">Still needed</div><div class="v">₹1,25,000</div></div>
+      </div>
+      <div class="pad"><button class="btn primary" onclick="toast('Added to emergency fund')">Add to fund</button></div>
+      <div class="sectionHdr">Coach tip</div>
+      <div class="pad"><div class="card"><div class="small muted">Aim for 6 months of expenses (₹5,10,000). Adding <b>₹10,000/month</b> gets you fully covered in about 28 months.</div></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== BUDGETS ===================== -->
+  <section class="screen" id="budgets">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Budgets</span><span class="act strong" onclick="toast('New budget')">＋</span></div>
+    <div class="scroll">
+      <div class="pad"><div class="card"><div class="row between"><span class="muted small">Spent this month</span><b>₹22,480 / ₹28,000</b></div><div class="bar mt2"><i style="width:80%;background:var(--grad)"></i></div></div></div>
+      <div class="sectionHdr">By category</div>
+      <div class="list">
+        <div class="item" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><b>Food</b><span class="small muted">₹2,500 / ₹5,000</span></div><div class="bar"><i style="width:50%;background:var(--teal)"></i></div></div>
+        <div class="item" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><b>Fuel</b><span class="small muted">₹3,700 / ₹5,000</span></div><div class="bar"><i style="width:74%;background:var(--amber)"></i></div></div>
+        <div class="item" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><b>Entertainment</b><span class="small neg">₹6,300 / ₹5,000 · exceeded</span></div><div class="bar"><i style="width:100%;background:var(--magenta)"></i></div></div>
+      </div>
+      <div class="pad"><button class="btn primary" onclick="toast('New budget added')">Set a budget</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== SAVINGS CHALLENGES ===================== -->
+  <section class="screen" id="challenges">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Savings Challenges</span><span class="act strong" onclick="toast('New challenge')">＋</span></div>
+    <div class="scroll">
+      <div class="sectionHdr">Active this month</div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:12px">
+        <div class="card"><div class="row between"><b>💰 Save ₹5,000 this month</b><span class="badge" style="background:var(--teal);color:#fff">64%</span></div><div class="bar mt2"><i style="width:64%;background:var(--grad)"></i></div><div class="muted tiny mt">₹3,200 saved · ₹1,800 to go</div></div>
+        <div class="card"><div class="row between"><b>🚫 No-spend week</b><span class="badge mag">Day 5/7</span></div><div class="bar mt2"><i style="width:71%;background:var(--grad)"></i></div><div class="muted tiny mt">2 more days to win this streak</div></div>
+        <div class="card"><div class="row between"><b>⛽ Cut fuel by 10%</b><span class="badge" style="background:var(--amber);color:#fff">On track</span></div><div class="bar mt2"><i style="width:80%;background:var(--grad)"></i></div><div class="muted tiny mt">₹3,700 vs ₹4,100 last month</div></div>
+      </div>
+      <div class="sectionHdr">Start a new one</div>
+      <div class="list">
+        <div class="item" onclick="toast('Challenge started')"><div class="ic" style="background:#7B2FF7">🎯</div><div class="tx"><b>Round-up savings</b><span>Save spare change on every spend</span></div><span class="chev">›</span></div>
+        <div class="item" onclick="toast('Challenge started')"><div class="ic" style="background:var(--blue)">📅</div><div class="tx"><b>52-week challenge</b><span>Save a little more each week</span></div><span class="chev">›</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SUBSCRIPTION MANAGER ===================== -->
+  <section class="screen" id="subs">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Subscriptions</span><span class="act strong" onclick="toast('Add subscription')">＋</span></div>
+    <div class="scroll">
+      <div class="pad">
+        <div class="card center" style="background:var(--grad-soft)">
+          <div class="muted small">Total every month</div>
+          <h2 style="font-size:26px;font-weight:800;color:var(--magenta)">₹1,366</h2>
+          <div class="muted tiny mt">5 active · ₹16,392 a year</div>
+        </div>
+      </div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:#E50914">🎬</div><div class="tx"><b>Netflix</b><span>Renews 30 Jul</span></div><div class="amt">₹649</div></div>
+        <div class="item"><div class="ic" style="background:#00A8E1">📦</div><div class="tx"><b>Amazon Prime</b><span>Renews 12 Aug</span></div><div class="amt">₹299</div></div>
+        <div class="item"><div class="ic" style="background:#1DB954">🎧</div><div class="tx"><b>Spotify</b><span>Renews 4 Aug</span></div><div class="amt">₹119</div></div>
+        <div class="item"><div class="ic" style="background:#1F80E0">📺</div><div class="tx"><b>Hotstar</b><span>Renews 21 Aug</span></div><div class="amt">₹299</div></div>
+      </div>
+      <div class="list" style="margin-top:0"><div class="item"><div class="tx"><b>Renewal reminders</b><span>3 days before each charge</span></div><span class="tog on" onclick="tog(this)"></span></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== FAMILY FINANCE ===================== -->
+  <section class="screen" id="family">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Family Finance</span><span class="act strong" onclick="toast('Invite link copied')">Invite</span></div>
+    <div class="scroll">
+      <div class="sectionHdr">Members</div>
+      <div class="list">
+        <div class="item"><div class="avatar" style="width:38px;height:38px;background:var(--grad);color:#fff">RS</div><div class="tx"><b>Rahul Sharma</b><span>Owner</span></div></div>
+        <div class="item"><div class="avatar" style="width:38px;height:38px;background:#7B2FF7;color:#fff">PS</div><div class="tx"><b>Priya Sharma</b><span>Partner</span></div></div>
+      </div>
+      <div class="grid2 pad">
+        <div class="stat"><div class="k">Shared this month</div><div class="v">₹48,200</div></div>
+        <div class="stat"><div class="k">Family budget</div><div class="v">₹60,000</div></div>
+      </div>
+      <div class="sectionHdr">Shared expenses</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--teal)">🛒</div><div class="tx"><b>Groceries</b><span>Priya · 18 Jul</span></div><div class="amt neg">₹6,400</div></div>
+        <div class="item"><div class="ic" style="background:var(--blue)">🏠</div><div class="tx"><b>House rent</b><span>Rahul · 5 Jul</span></div><div class="amt neg">₹28,000</div></div>
+      </div>
+      <div class="pad"><div class="card"><div class="row between"><b>🎓 Children's education</b><span class="small muted">₹1,20,000 saved</span></div><div class="bar mt2"><i style="width:40%;background:var(--grad)"></i></div><div class="muted tiny mt">Goal ₹3,00,000 for school fees</div></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== ACHIEVEMENTS ===================== -->
+  <section class="screen" id="achievements">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Achievements</span><span class="act"></span></div>
+    <div class="scroll">
+      <div class="pad">
+        <div class="card center" style="background:var(--grad);color:#fff">
+          <div style="font-size:40px">🎉</div>
+          <b style="font-size:18px">You closed your Gold Loan!</b>
+          <div class="small" style="opacity:.9;margin-top:4px">One less debt. That's ₹0 interest from here on.</div>
+        </div>
+      </div>
+      <div class="sectionHdr">Milestones</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--teal)">🏆</div><div class="tx"><b>Saved ₹50,000 this year</b><span>Unlocked 12 Jul</span></div><span class="badge" style="background:var(--teal);color:#fff">Done</span></div>
+        <div class="item"><div class="ic" style="background:var(--amber)">🎯</div><div class="tx"><b>Hit a savings goal</b><span>Emergency fund 50%</span></div><span class="badge" style="background:var(--amber);color:#fff">Done</span></div>
+        <div class="item" style="opacity:.55"><div class="ic" style="background:var(--muted)">🔒</div><div class="tx"><b>Debt-free</b><span>Clear all loans & cards</span></div><span class="badge">Locked</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SMART NOTIFICATIONS ===================== -->
+  <section class="screen" id="notifications">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Notifications</span><span class="act" onclick="toast('All marked read')">✓</span></div>
+    <div class="scroll">
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--teal)">✅</div><div class="tx"><b>Great job!</b><span>You paid your Home Loan EMI on time.</span></div></div>
+        <div class="item"><div class="ic" style="background:var(--magenta)">⚠️</div><div class="tx"><b>Alert</b><span>HDFC Card utilisation crossed 80% — pay it down.</span></div></div>
+        <div class="item"><div class="ic" style="background:var(--amber)">📈</div><div class="tx"><b>Heads up</b><span>You spent ₹4,200 more than last month.</span></div></div>
+        <div class="item"><div class="ic" style="background:var(--blue)">🎯</div><div class="tx"><b>Almost there</b><span>Only ₹1,800 more to hit your monthly savings target.</span></div></div>
+        <div class="item"><div class="ic" style="background:#7B2FF7">💡</div><div class="tx"><b>Tip</b><span>Pay your HDFC Card first — it has the highest interest.</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CALENDAR ===================== -->
+  <section class="screen" id="calendar">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">July 2026</span><span class="act"></span></div>
+    <div class="scroll">
+      <div class="pad">
+        <div class="card">
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center;font-size:12px">
+            <span class="muted">S</span><span class="muted">M</span><span class="muted">T</span><span class="muted">W</span><span class="muted">T</span><span class="muted">F</span><span class="muted">S</span>
+            <span>1</span><span>2</span><span>3</span><span>4</span><span class="calDot">5</span><span>6</span><span>7</span>
+            <span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span>
+            <span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span class="calDot">21</span>
+            <span class="calToday">22</span><span class="calDot">23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span>
+            <span>29</span><span class="calDot">30</span><span>31</span>
+          </div>
+        </div>
+      </div>
+      <div class="sectionHdr">Due this month</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--magenta)">💳</div><div class="tx"><b>HDFC Credit Card</b><span>22 Jul</span></div><div class="amt neg">₹18,400</div></div>
+        <div class="item"><div class="ic" style="background:var(--blue)">🏠</div><div class="tx"><b>Home Loan EMI</b><span>23 Jul</span></div><div class="amt">₹15,600</div></div>
+        <div class="item"><div class="ic" style="background:var(--amber)">📱</div><div class="tx"><b>Jio Postpaid</b><span>28 Jul</span></div><div class="amt">₹599</div></div>
+        <div class="item"><div class="ic" style="background:#E50914">🎬</div><div class="tx"><b>Netflix</b><span>30 Jul</span></div><div class="amt">₹649</div></div>
+        <div class="item"><div class="ic" style="background:var(--teal)">🛡️</div><div class="tx"><b>Car Insurance</b><span>5 Jul · renewed</span></div><div class="amt">₹8,900</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SMART SEARCH ===================== -->
+  <section class="screen" id="search">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Search</span><span class="act"></span></div>
+    <div class="scroll pad">
+      <div class="field" style="display:flex;align-items:center;gap:8px"><span>🔍</span><input placeholder="Search banks, loans, cards, categories…" oninput="toast('Searching…')"/></div>
+      <div class="sectionHdr" style="padding-left:4px">Loans &amp; cards</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--blue)">🏠</div><div class="tx"><b>Home Loan · HDFC</b><span>₹2,10,000 outstanding</span></div><span class="chev">›</span></div>
+        <div class="item"><div class="ic" style="background:var(--magenta)">💳</div><div class="tx"><b>HDFC Millennia</b><span>₹18,400 · 42% APR</span></div><span class="chev">›</span></div>
+      </div>
+      <div class="sectionHdr" style="padding-left:4px">Categories &amp; transactions</div>
+      <div class="list">
+        <div class="item"><div class="ic" style="background:var(--teal)">🍔</div><div class="tx"><b>Food · Dining</b><span>₹9,380 this month</span></div><span class="chev">›</span></div>
+        <div class="item"><div class="ic" style="background:var(--amber)">⛽</div><div class="tx"><b>Swiggy</b><span>−₹640 · 20 Jul</span></div><span class="chev">›</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SECURE DOCUMENTS VAULT ===================== -->
+  <section class="screen" id="vault">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Documents Vault</span><span class="act strong" onclick="toast('Upload document')">＋</span></div>
+    <div class="scroll">
+      <div class="pad"><div class="card" style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">🔒</span><div class="tx"><b>Protected</b><span class="small muted">Unlocked with PIN · Face ID enabled</span></div></div></div>
+      <div class="field" style="margin:0 16px 8px;display:flex;align-items:center;gap:8px"><span>🔍</span><input placeholder="Search documents…"/></div>
+      <div class="sectionHdr">Categories</div>
+      <div class="pad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div class="card center" onclick="toast('Aadhaar Card')"><div style="font-size:24px">🪪</div><div class="tiny" style="font-weight:600;margin-top:4px">Aadhaar</div></div>
+        <div class="card center" onclick="toast('PAN Card')"><div style="font-size:24px">💳</div><div class="tiny" style="font-weight:600;margin-top:4px">PAN</div></div>
+        <div class="card center" onclick="toast('Driving License')"><div style="font-size:24px">🚗</div><div class="tiny" style="font-weight:600;margin-top:4px">License</div></div>
+        <div class="card center" onclick="toast('Passport')"><div style="font-size:24px">🛂</div><div class="tiny" style="font-weight:600;margin-top:4px">Passport</div></div>
+        <div class="card center" onclick="toast('Voter ID')"><div style="font-size:24px">🗳️</div><div class="tiny" style="font-weight:600;margin-top:4px">Voter ID</div></div>
+        <div class="card center" onclick="toast('Insurance')"><div style="font-size:24px">🛡️</div><div class="tiny" style="font-weight:600;margin-top:4px">Insurance</div></div>
+        <div class="card center" onclick="toast('Vehicle RC')"><div style="font-size:24px">📄</div><div class="tiny" style="font-weight:600;margin-top:4px">Vehicle RC</div></div>
+        <div class="card center" onclick="toast('Loan Documents')"><div style="font-size:24px">🏦</div><div class="tiny" style="font-weight:600;margin-top:4px">Loan Docs</div></div>
+        <div class="card center" onclick="toast('Property Papers')"><div style="font-size:24px">🏡</div><div class="tiny" style="font-weight:600;margin-top:4px">Property</div></div>
+        <div class="card center" onclick="toast('Medical Reports')"><div style="font-size:24px">🩺</div><div class="tiny" style="font-weight:600;margin-top:4px">Medical</div></div>
+        <div class="card center" onclick="toast('Bank Debit / ATM Cards · front &amp; back')"><div style="font-size:24px">🏧</div><div class="tiny" style="font-weight:600;margin-top:4px">Cards</div></div>
+        <div class="card center" onclick="toast('Passport-size Photos')"><div style="font-size:24px">🖼️</div><div class="tiny" style="font-weight:600;margin-top:4px">Photos</div></div>
+        <div class="card center" onclick="toast('Any Other Documents')"><div style="font-size:24px">📁</div><div class="tiny" style="font-weight:600;margin-top:4px">Other</div></div>
+      </div>
+      <div class="pad"><button class="btn primary" onclick="toast('Upload photo or PDF')">📎 Upload document</button></div>
     </div>
   </section>
 
@@ -941,9 +1285,9 @@ const nav={
     const el=document.getElementById(id); el.classList.add('active');
     el.querySelector('.scroll')&&(el.querySelector('.scroll').scrollTop=0);
     if(!isTab)stack.push(id);
-    // tab bar visibility
-    const authed=!['welcome','login','register','forgot','onbCurrency','onbGoal','onbNotif'].includes(id);
-    $('#tabbar').style.display=authed?'flex':'none';
+    // tab bar visibility — only on the 5 root tabs; modals (New expense…) and
+    // detail/feature screens are full-screen so their content never hides behind it.
+    $('#tabbar').style.display=tabScreens.includes(id)?'flex':'none';
     // status bar color
     setBar(el.dataset.bar==='light');
     // active tab highlight
