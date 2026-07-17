@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Mic, Pencil, Plus, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import {
     Dialog,
     DialogContent,
@@ -10,7 +11,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import InputError from '@/components/InputError.vue';
 import { useCurrency } from '@/composables/useCurrency';
 import { parseSpokenTransaction, useVoice } from '@/composables/useVoice';
 
@@ -89,8 +89,12 @@ const openEdit = (i: Item) => {
 };
 const submit = () => {
     const opts = { preserveScroll: true, onSuccess: () => (open.value = false) };
-    if (editingId.value) form.put(`/entries/${editingId.value}`, opts);
-    else form.post('/entries', opts);
+
+    if (editingId.value) {
+form.put(`/entries/${editingId.value}`, opts);
+} else {
+form.post('/entries', opts);
+}
 };
 
 // Voice input: "spent 500 on fuel" → prefilled add dialog.
@@ -103,16 +107,28 @@ const startVoice = () => {
         heardText.value = text;
         const p = parseSpokenTransaction(text);
         form.type = p.type;
-        if (p.amount) form.amount = p.amount;
-        if (p.category) form.category = p.category;
-        if (p.description) form.description = p.description;
+
+        if (p.amount) {
+form.amount = p.amount;
+}
+
+        if (p.category) {
+form.category = p.category;
+}
+
+        if (p.description) {
+form.description = p.description;
+}
     });
 };
 
 const deleteTarget = ref<Item | null>(null);
 const del = useForm({});
 const confirmDelete = () => {
-    if (!deleteTarget.value) return;
+    if (!deleteTarget.value) {
+return;
+}
+
     del.delete(`/entries/${deleteTarget.value.id}`, {
         preserveScroll: true,
         onSuccess: () => (deleteTarget.value = null),

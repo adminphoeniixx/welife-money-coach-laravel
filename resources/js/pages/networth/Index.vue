@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { Pencil, Plus, Trash2, Wallet } from '@lucide/vue';
 import { ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import {
     Dialog,
     DialogContent,
@@ -10,7 +11,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import InputError from '@/components/InputError.vue';
 import { useCurrency } from '@/composables/useCurrency';
 
 defineOptions({
@@ -49,14 +49,21 @@ const openEdit = (a: Account) => {
 };
 const submit = () => {
     const opts = { preserveScroll: true, onSuccess: () => (open.value = false) };
-    if (editingId.value) form.put(`/assets/${editingId.value}`, opts);
-    else form.post('/assets', opts);
+
+    if (editingId.value) {
+form.put(`/assets/${editingId.value}`, opts);
+} else {
+form.post('/assets', opts);
+}
 };
 
 const deleteTarget = ref<Account | null>(null);
 const del = useForm({});
 const confirmDelete = () => {
-    if (!deleteTarget.value) return;
+    if (!deleteTarget.value) {
+return;
+}
+
     del.delete(`/assets/${deleteTarget.value.id}`, { preserveScroll: true, onSuccess: () => (deleteTarget.value = null) });
 };
 </script>

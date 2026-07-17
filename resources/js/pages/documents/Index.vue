@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { useDebounceFn } from '@vueuse/core';
 import {
     CreditCard,
     Download,
@@ -15,7 +14,9 @@ import {
     Trash2,
     Upload,
 } from '@lucide/vue';
+import { useDebounceFn } from '@vueuse/core';
 import { computed, ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import {
     Dialog,
     DialogContent,
@@ -24,7 +25,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import InputError from '@/components/InputError.vue';
 
 defineOptions({
     layout: {
@@ -143,6 +143,7 @@ const submit = () => {
             fileName.value = '';
         },
     };
+
     if (editingId.value) {
         form.post(`/vault/documents/${editingId.value}`, options);
     } else {
@@ -154,7 +155,10 @@ const submit = () => {
 const deleteTarget = ref<Doc | null>(null);
 const deleteForm = useForm({});
 const confirmDelete = () => {
-    if (!deleteTarget.value) return;
+    if (!deleteTarget.value) {
+return;
+}
+
     deleteForm.delete(`/vault/documents/${deleteTarget.value.id}`, {
         preserveScroll: true,
         onSuccess: () => (deleteTarget.value = null),

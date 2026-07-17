@@ -93,15 +93,24 @@ function submitAssign() {
     });
 }
 function cancel(sub: Sub) {
-    if (!window.confirm(`Cancel ${sub.user?.name}'s ${sub.plan} subscription?`)) return;
+    if (!window.confirm(`Cancel ${sub.user?.name}'s ${sub.plan} subscription?`)) {
+return;
+}
+
     router.patch(`/admin/subscriptions/${sub.id}/cancel`, {}, { preserveScroll: true });
 }
 function reactivate(sub: Sub) {
     router.patch(`/admin/subscriptions/${sub.id}/reactivate`, {}, { preserveScroll: true });
 }
 function statusVariant(s: string) {
-    if (s === 'active' || s === 'trialing') return 'default';
-    if (s === 'cancelled') return 'destructive';
+    if (s === 'active' || s === 'trialing') {
+return 'default';
+}
+
+    if (s === 'cancelled') {
+return 'destructive';
+}
+
     return 'secondary';
 }
 function formatDate(v: string | null) {

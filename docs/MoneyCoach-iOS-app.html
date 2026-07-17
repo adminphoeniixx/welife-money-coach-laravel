@@ -427,17 +427,45 @@ body{
         <div class="stat"><div class="k">Monthly EMIs</div><div class="v">₹ 24,800</div><div class="small muted">29% of income</div></div>
       </div>
 
-      <!-- priority action -->
+      <!-- priority payment -->
+      <div class="row between" style="padding:20px 20px 8px"><b>Priority Payment</b></div>
+      <div class="pad" style="padding-top:0">
+        <div class="card" style="background:var(--grad);color:#fff" onclick="nav.tab('reminders')">
+          <div class="row between">
+            <span class="badge" style="background:rgba(255,255,255,.22);color:#fff">🔴 Pay today</span>
+            <span class="small" style="opacity:.85">Due tomorrow · 22 Jul</span>
+          </div>
+          <div class="row between" style="margin-top:12px;align-items:center">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:24px">💳</span>
+              <div><div style="font-size:17px;font-weight:700">HDFC Credit Card</div><div class="small" style="opacity:.9">Minimum due ₹4,200</div></div>
+            </div>
+            <div style="font-size:20px;font-weight:800">₹18,400</div>
+          </div>
+          <div style="margin-top:12px;background:rgba(255,255,255,.16);border-radius:12px;padding:9px 12px;font-size:13px">⚠️ Extra interest after due date: <b>₹420</b></div>
+          <button class="btn" style="background:#fff;color:var(--magenta);margin-top:12px" onclick="event.stopPropagation();toast('Opening payment…')">Pay now</button>
+        </div>
+      </div>
+
+      <!-- debt coach nudge -->
+      <div class="pad" style="padding-top:0">
+        <div class="card" style="display:flex;gap:12px;align-items:flex-start;border-left:3px solid var(--magenta)" onclick="nav.go('debtCoach')">
+          <span style="font-size:20px">⚡</span>
+          <div><b class="small">Pay ₹5,000 extra on your HDFC Card</b><div class="muted small" style="margin-top:2px">Highest interest (42%) — saves ₹18,400 &amp; clears 3 months sooner. <span class="link">Open Debt Coach ›</span></div></div>
+        </div>
+      </div>
+
+      <!-- ask your coach banner -->
       <div class="pad">
-        <div class="card" style="background:var(--grad);color:#fff" onclick="nav.go('debtCoach')">
-          <div class="row between"><span class="badge" style="background:rgba(255,255,255,.22);color:#fff">⚡ Priority</span><span class="small" style="opacity:.85">Debt Coach</span></div>
-          <div style="font-size:17px;font-weight:700;margin-top:10px">Pay ₹5,000 extra on your HDFC Card</div>
-          <div class="small" style="opacity:.9;margin-top:4px">Highest interest (42%) — saves ₹18,400 & clears 3 months sooner.</div>
+        <div class="card" style="display:flex;align-items:center;gap:12px" onclick="nav.go('coach')">
+          <span style="width:44px;height:44px;border-radius:14px;background:var(--grad-soft);display:grid;place-items:center;font-size:22px;flex:none">🧠</span>
+          <div style="flex:1"><b class="small">Ask your Coach</b><div class="muted small">Which loan first? Where am I overspending? 🎤 Ask by voice.</div></div>
+          <span class="chev">›</span>
         </div>
       </div>
 
       <!-- AI financial tips -->
-      <div class="row between" style="padding:20px 20px 8px"><b>💡 AI Financial Tips</b><span class="link small" onclick="nav.go('notifications')">More</span></div>
+      <div class="row between" style="padding:20px 20px 8px"><b>💡 AI Financial Tips</b><span class="link small" onclick="nav.go('coach')">More</span></div>
       <div class="pad" style="padding-top:0;display:flex;flex-direction:column;gap:10px">
         <div class="card" style="display:flex;gap:12px;align-items:flex-start;border-left:3px solid var(--teal)">
           <span style="font-size:20px">🍽️</span>
@@ -476,10 +504,19 @@ body{
         </div>
       </div>
 
+      <!-- recent transactions -->
+      <div class="row between" style="padding:20px 20px 8px"><b>Recent transactions</b><span class="link small" onclick="nav.tab('transactions')">See all</span></div>
+      <div class="list">
+        <div class="item" onclick="nav.tab('transactions')"><div class="ic" style="background:var(--teal)">🍔</div><div class="tx"><b>Swiggy</b><span>Food · 20 Jul</span></div><div class="amt neg">−₹640</div></div>
+        <div class="item" onclick="nav.tab('transactions')"><div class="ic" style="background:var(--blue)">⛽</div><div class="tx"><b>HP Petrol Pump</b><span>Fuel · 19 Jul</span></div><div class="amt neg">−₹2,000</div></div>
+        <div class="item" onclick="nav.tab('transactions')"><div class="ic" style="background:var(--amber)">💰</div><div class="tx"><b>Salary · Infosys</b><span>Income · 1 Jul</span></div><div class="amt pos">+₹85,000</div></div>
+      </div>
+
       <!-- coach tools -->
       <div class="row between" style="padding:20px 20px 8px"><b>Coach &amp; tools</b></div>
       <div class="pad" style="padding-top:0">
         <div class="tiles">
+          <button class="tile" onclick="nav.go('coach')"><span class="tico">🧠</span><span class="tlbl">Ask Coach</span></button>
           <button class="tile" onclick="nav.go('networth')"><span class="tico">⚖️</span><span class="tlbl">Net Worth</span></button>
           <button class="tile" onclick="nav.go('budgets')"><span class="tico">📊</span><span class="tlbl">Budgets</span></button>
           <button class="tile" onclick="nav.go('emergency')"><span class="tico">🛟</span><span class="tlbl">Emergency</span></button>
@@ -534,6 +571,18 @@ body{
           <div class="lbl" style="opacity:.85;font-size:13px">Total outstanding</div>
           <div style="font-size:32px;font-weight:800;letter-spacing:-.5px">₹ 3,18,000</div>
           <div class="row between mt" style="font-size:13px;opacity:.92"><span>Monthly payment ₹24,800</span><span>Avg APR 19.4%</span></div>
+        </div>
+      </div>
+      <!-- debt-free countdown -->
+      <div class="pad" style="padding-top:0">
+        <div class="card center">
+          <div class="muted small">🎉 Debt-Free Countdown</div>
+          <div style="display:flex;justify-content:center;gap:18px;margin-top:8px">
+            <div><div style="font-size:26px;font-weight:800;color:var(--magenta)">2</div><div class="tiny muted">Years</div></div>
+            <div><div style="font-size:26px;font-weight:800;color:var(--magenta)">4</div><div class="tiny muted">Months</div></div>
+            <div><div style="font-size:26px;font-weight:800;color:var(--magenta)">18</div><div class="tiny muted">Days</div></div>
+          </div>
+          <div class="muted tiny mt">On your current plan · target Mar 2028</div>
         </div>
       </div>
       <div class="row between" style="padding:8px 20px 8px"><b>Debt-free coach</b><span class="link small" onclick="nav.go('debtCoach')">Open</span></div>
@@ -963,6 +1012,36 @@ body{
       <div class="field"><label>Due date</label><input placeholder="24 Jul 2026"/></div>
       <div class="field"><label>Repeat</label><select><option>One time</option><option>Monthly</option><option>Weekly</option><option>Yearly</option></select></div>
       <div class="field"><label>Remind me</label><select><option>1 day before</option><option>3 days before</option><option>5 days before</option><option>7 days before</option></select></div>
+    </div>
+  </section>
+
+  <!-- ===================== ASK YOUR COACH ===================== -->
+  <section class="screen" id="coach">
+    <div class="nav blur"><span class="back" onclick="nav.back()">‹</span><span class="title">Your Coach</span><span class="act"></span></div>
+    <div class="scroll">
+      <div class="pad">
+        <div class="card" style="background:var(--grad);color:#fff">
+          <div class="row" style="gap:10px;align-items:center"><span style="font-size:26px">🧠</span><b style="font-size:17px">Your Financial Coach</b></div>
+          <div class="small" style="opacity:.92;margin-top:6px">Ask me anything about your money — I answer with your real numbers, not generic advice.</div>
+        </div>
+      </div>
+      <!-- voice + text ask bar -->
+      <div class="field" style="margin:0 16px 6px;display:flex;align-items:center;gap:10px">
+        <input placeholder="Ask a question…" style="flex:1"/>
+        <span onclick="toast('🎤 Listening… “Which loan should I close first?”')" style="width:40px;height:40px;border-radius:50%;background:var(--grad);display:grid;place-items:center;cursor:pointer;flex:none">🎤</span>
+      </div>
+      <div class="muted tiny" style="padding:0 20px 8px">Tip: tap 🎤 and speak, e.g. “I spent ₹500 on fuel” or “How much can I save this month?”</div>
+
+      <div class="sectionHdr">Answered for you</div>
+      <div class="pad" style="padding-top:0;display:flex;flex-direction:column;gap:10px">
+        <div class="card" style="border-left:3px solid var(--magenta)"><b class="small">Which loan should I close first?</b><div class="muted small mt">Your <b>Gold Loan (14%)</b> — after cards it's your priciest debt. Closing it first stops the most interest.</div></div>
+        <div class="card" style="border-left:3px solid var(--magenta)"><b class="small">Which credit card should I pay first?</b><div class="muted small mt"><b>HDFC Millennia (42% APR)</b> — highest rate, so it costs you the most every month.</div></div>
+        <div class="card" style="border-left:3px solid var(--teal)"><b class="small">Where am I overspending?</b><div class="muted small mt"><b>Dining & fuel</b> are ₹4,200 above last month. Trimming dining alone saves ~₹3,000.</div></div>
+        <div class="card" style="border-left:3px solid var(--teal)"><b class="small">How much can I save this month?</b><div class="muted small mt">About <b>₹3,000</b> by cutting dining out, plus ₹1,800 already ahead of your target.</div></div>
+        <div class="card" style="border-left:3px solid var(--amber)" onclick="nav.go('debtCoach')"><b class="small">How can I become debt-free faster?</b><div class="muted small mt">Add <b>₹5,000/month</b> to your HDFC card → debt-free <b>4 months sooner</b>. <span class="link">Open Debt Coach ›</span></div></div>
+        <div class="card" style="border-left:3px solid var(--amber)" onclick="nav.go('debtCoach')"><b class="small">How much interest can I save with extra payments?</b><div class="muted small mt">Paying ₹5k extra saves <b>₹18,400</b> in interest. <span class="link">Try the slider ›</span></div></div>
+        <div class="card" style="border-left:3px solid #7B2FF7" onclick="nav.go('debtCoach')"><b class="small">What's the best repayment strategy for me?</b><div class="muted small mt"><b>Avalanche</b> (highest-interest first) fits you — saves more than Snowball given your 42% card.</div></div>
+      </div>
     </div>
   </section>
 

@@ -66,6 +66,7 @@ function priceLabel(plan: Plan): string {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
+
     return `${plan.currency} ${amount}`;
 }
 
@@ -115,6 +116,7 @@ function destroy(plan: Plan) {
     if (!window.confirm(`Delete plan "${plan.name}"?`)) {
         return;
     }
+
     router.delete(`/admin/plans/${plan.id}`, { preserveScroll: true });
 }
 </script>

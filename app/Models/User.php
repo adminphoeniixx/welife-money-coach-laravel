@@ -17,11 +17,19 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property string $currency
+ * @property string $locale
+ * @property string|null $country
+ * @property string|null $primary_goal
+ * @property bool $notifications_enabled
+ * @property array<string, mixed>|null $notification_prefs
+ * @property bool $onboarded
  * @property string|null $avatar_path
  * @property bool $is_admin
  * @property Carbon|null $suspended_at
@@ -35,12 +43,12 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'avatar_path'])]
+#[Fillable(['name', 'email', 'password', 'avatar_path', 'currency', 'locale', 'country', 'primary_goal', 'notifications_enabled', 'notification_prefs', 'onboarded'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'vault_pin'])]
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Appended to the serialised model so the UI always has a photo URL.
@@ -48,6 +56,19 @@ class User extends Authenticatable implements PasskeyUser
      * @var list<string>
      */
     protected $appends = ['avatar_url'];
+
+    /**
+     * Default preference values, mirroring the database column defaults so a
+     * freshly built (not-yet-reloaded) model never exposes nulls.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'currency' => 'INR',
+        'locale' => 'en-IN',
+        'notifications_enabled' => true,
+        'onboarded' => false,
+    ];
 
     /**
      * Public URL of the profile photo, or null to fall back to initials.
@@ -75,9 +96,10 @@ class User extends Authenticatable implements PasskeyUser
             'is_admin' => 'boolean',
             'suspended_at' => 'datetime',
             'password' => 'hashed',
-            /* @chisel-2fa */
             'two_factor_confirmed_at' => 'datetime',
-            /* @end-chisel-2fa */
+            'notifications_enabled' => 'boolean',
+            'notification_prefs' => 'array',
+            'onboarded' => 'boolean',
         ];
     }
 

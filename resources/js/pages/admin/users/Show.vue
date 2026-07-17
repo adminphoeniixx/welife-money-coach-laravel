@@ -80,15 +80,25 @@ function sendPasswordReset() {
 }
 function toggleSuspend() {
     const verb = props.user.suspended_at ? 'reinstate' : 'suspend';
-    if (!window.confirm(`Are you sure you want to ${verb} ${props.user.name}?`)) return;
+
+    if (!window.confirm(`Are you sure you want to ${verb} ${props.user.name}?`)) {
+return;
+}
+
     router.patch(`${base()}/suspend`, {}, opts);
 }
 function impersonate() {
-    if (!window.confirm(`Log in as ${props.user.name}? You can return from the banner.`)) return;
+    if (!window.confirm(`Log in as ${props.user.name}? You can return from the banner.`)) {
+return;
+}
+
     router.post(`${base()}/impersonate`, {});
 }
 function destroy() {
-    if (!window.confirm(`Delete ${props.user.name}? This permanently removes the account.`)) return;
+    if (!window.confirm(`Delete ${props.user.name}? This permanently removes the account.`)) {
+return;
+}
+
     router.delete(base());
 }
 

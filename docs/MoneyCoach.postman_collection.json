@@ -1,0 +1,492 @@
+{
+  "info": {
+    "name": "MoneyCoach API",
+    "description": "Mobile REST API for the MoneyCoach iOS app (Laravel Sanctum token auth). Login or Register first — the token is saved to the {{token}} collection variable automatically. See docs/MoneyCoach-API.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000/api" },
+    { "key": "token", "value": "" },
+    { "key": "reset_token", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": ["pm.request.headers.upsert({ key: 'Accept', value: 'application/json' });"]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth & Onboarding",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('token', pm.response.json().token);",
+                  "  pm.test('token saved', () => pm.expect(pm.collectionVariables.get('token')).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "name", "value": "Rahul Sharma" },
+                { "key": "email", "value": "rahul@example.com" },
+                { "key": "password", "value": "Password!234" },
+                { "key": "password_confirmation", "value": "Password!234" },
+                { "key": "device_name", "value": "Postman" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('token', pm.response.json().token);",
+                  "  pm.test('token saved', () => pm.expect(pm.collectionVariables.get('token')).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "test@example.com" },
+                { "key": "password", "value": "password" },
+                { "key": "device_name", "value": "Postman" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Forgot password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/auth/forgot-password", "host": ["{{base_url}}"], "path": ["auth", "forgot-password"] },
+            "body": { "mode": "urlencoded", "urlencoded": [{ "key": "email", "value": "test@example.com" }] }
+          }
+        },
+        {
+          "name": "Reset password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/auth/reset-password", "host": ["{{base_url}}"], "path": ["auth", "reset-password"] },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{reset_token}}" },
+                { "key": "email", "value": "test@example.com" },
+                { "key": "password", "value": "NewPass!234" },
+                { "key": "password_confirmation", "value": "NewPass!234" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Me (current user)",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/user", "host": ["{{base_url}}"], "path": ["user"] } }
+        },
+        {
+          "name": "Logout (this device)",
+          "request": { "method": "POST", "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] } }
+        },
+        {
+          "name": "Logout all devices",
+          "request": { "method": "POST", "url": { "raw": "{{base_url}}/auth/logout-all", "host": ["{{base_url}}"], "path": ["auth", "logout-all"] } }
+        },
+        {
+          "name": "Onboarding — options",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/onboarding", "host": ["{{base_url}}"], "path": ["onboarding"] } }
+        },
+        {
+          "name": "Onboarding — save",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/onboarding", "host": ["{{base_url}}"], "path": ["onboarding"] },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "currency", "value": "INR" },
+                { "key": "primary_goal", "value": "get_out_of_debt" },
+                { "key": "notifications_enabled", "value": "1" },
+                { "key": "locale", "value": "en-IN" },
+                { "key": "country", "value": "IN" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Dashboard & Coach",
+      "item": [
+        { "name": "Dashboard (home)", "request": { "method": "GET", "url": { "raw": "{{base_url}}/dashboard", "host": ["{{base_url}}"], "path": ["dashboard"] } } },
+        { "name": "Debt payoff coach", "request": { "method": "GET", "url": { "raw": "{{base_url}}/coach?strategy=avalanche&extra=2000", "host": ["{{base_url}}"], "path": ["coach"], "query": [{ "key": "strategy", "value": "avalanche" }, { "key": "extra", "value": "2000" }] } } }
+      ]
+    },
+    {
+      "name": "3. Transactions",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": { "raw": "{{base_url}}/transactions?type=all", "host": ["{{base_url}}"], "path": ["transactions"], "query": [{ "key": "type", "value": "all" }] } } },
+        {
+          "name": "Create entry",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/entries", "host": ["{{base_url}}"], "path": ["entries"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "type", "value": "expense" },
+              { "key": "amount", "value": "640.50" },
+              { "key": "category", "value": "Food" },
+              { "key": "description", "value": "Swiggy" },
+              { "key": "payee", "value": "Swiggy" },
+              { "key": "method", "value": "UPI" },
+              { "key": "occurred_on", "value": "2026-07-10" }
+            ] }
+          }
+        },
+        {
+          "name": "Update entry",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{base_url}}/entries/1", "host": ["{{base_url}}"], "path": ["entries", "1"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "type", "value": "expense" },
+              { "key": "amount", "value": "700" },
+              { "key": "occurred_on", "value": "2026-07-10" }
+            ] }
+          }
+        },
+        { "name": "Delete entry", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/entries/1", "host": ["{{base_url}}"], "path": ["entries", "1"] } } }
+      ]
+    },
+    {
+      "name": "4. Debts",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": { "raw": "{{base_url}}/debts", "host": ["{{base_url}}"], "path": ["debts"] } } },
+        { "name": "Detail + payment history", "request": { "method": "GET", "url": { "raw": "{{base_url}}/debts/1", "host": ["{{base_url}}"], "path": ["debts", "1"] } } },
+        {
+          "name": "Create loan",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/debts", "host": ["{{base_url}}"], "path": ["debts"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "name", "value": "HDFC Home Loan" },
+              { "key": "institution", "value": "HDFC" },
+              { "key": "kind", "value": "loan" },
+              { "key": "category", "value": "home" },
+              { "key": "interest_rate", "value": "8.5" },
+              { "key": "balance", "value": "2500000" },
+              { "key": "principal", "value": "3000000" },
+              { "key": "emi", "value": "24500" },
+              { "key": "total_emis", "value": "240" },
+              { "key": "emis_paid", "value": "60" },
+              { "key": "due_day", "value": "5" }
+            ] }
+          }
+        },
+        {
+          "name": "Create credit card",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/debts", "host": ["{{base_url}}"], "path": ["debts"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "name", "value": "HDFC Regalia" },
+              { "key": "kind", "value": "credit_card" },
+              { "key": "interest_rate", "value": "42" },
+              { "key": "balance", "value": "45000" },
+              { "key": "credit_limit", "value": "200000" },
+              { "key": "min_due", "value": "2500" },
+              { "key": "due_day", "value": "18" }
+            ] }
+          }
+        },
+        {
+          "name": "Update debt",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{base_url}}/debts/1", "host": ["{{base_url}}"], "path": ["debts", "1"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "name", "value": "HDFC Home Loan" },
+              { "key": "kind", "value": "loan" },
+              { "key": "interest_rate", "value": "8.4" },
+              { "key": "balance", "value": "2400000" }
+            ] }
+          }
+        },
+        { "name": "Delete debt", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/debts/1", "host": ["{{base_url}}"], "path": ["debts", "1"] } } },
+        {
+          "name": "Record payment (EMI)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/debts/1/payment", "host": ["{{base_url}}"], "path": ["debts", "1", "payment"] },
+            "body": { "mode": "urlencoded", "urlencoded": [{ "key": "amount", "value": "24500" }] }
+          }
+        },
+        {
+          "name": "Attach documents (multipart)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/debts/1/documents", "host": ["{{base_url}}"], "path": ["debts", "1", "documents"] },
+            "body": { "mode": "formdata", "formdata": [{ "key": "documents[]", "type": "file", "src": [] }] }
+          }
+        },
+        { "name": "View attachment", "request": { "method": "GET", "url": { "raw": "{{base_url}}/debt-documents/1/view", "host": ["{{base_url}}"], "path": ["debt-documents", "1", "view"] } } },
+        { "name": "Download attachment", "request": { "method": "GET", "url": { "raw": "{{base_url}}/debt-documents/1/download", "host": ["{{base_url}}"], "path": ["debt-documents", "1", "download"] } } },
+        { "name": "Delete attachment", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/debt-documents/1", "host": ["{{base_url}}"], "path": ["debt-documents", "1"] } } }
+      ]
+    },
+    {
+      "name": "5. Net Worth / Assets",
+      "item": [
+        { "name": "Net worth", "request": { "method": "GET", "url": { "raw": "{{base_url}}/net-worth", "host": ["{{base_url}}"], "path": ["net-worth"] } } },
+        {
+          "name": "Create asset",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/assets", "host": ["{{base_url}}"], "path": ["assets"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "name", "value": "HDFC Savings" },
+              { "key": "type", "value": "bank" },
+              { "key": "balance", "value": "125000" },
+              { "key": "note", "value": "Salary account" }
+            ] }
+          }
+        },
+        {
+          "name": "Update asset",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{base_url}}/assets/1", "host": ["{{base_url}}"], "path": ["assets", "1"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "name", "value": "HDFC Savings" },
+              { "key": "type", "value": "bank" },
+              { "key": "balance", "value": "130000" }
+            ] }
+          }
+        },
+        { "name": "Delete asset", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/assets/1", "host": ["{{base_url}}"], "path": ["assets", "1"] } } }
+      ]
+    },
+    {
+      "name": "6. Budgets, Goals & Emergency",
+      "item": [
+        { "name": "Planning (budgets + goals)", "request": { "method": "GET", "url": { "raw": "{{base_url}}/planning", "host": ["{{base_url}}"], "path": ["planning"] } } },
+        {
+          "name": "Create budget",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/budgets", "host": ["{{base_url}}"], "path": ["budgets"] },
+            "body": { "mode": "urlencoded", "urlencoded": [{ "key": "category", "value": "Food" }, { "key": "limit", "value": "8000" }] }
+          }
+        },
+        {
+          "name": "Update budget",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{base_url}}/budgets/1", "host": ["{{base_url}}"], "path": ["budgets", "1"] },
+            "body": { "mode": "urlencoded", "urlencoded": [{ "key": "category", "value": "Food" }, { "key": "limit", "value": "9000" }] }
+          }
+        },
+        { "name": "Delete budget", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/budgets/1", "host": ["{{base_url}}"], "path": ["budgets", "1"] } } },
+        {
+          "name": "Create goal",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/goals", "host": ["{{base_url}}"], "path": ["goals"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "name", "value": "Emergency Fund" },
+              { "key": "type", "value": "emergency_fund" },
+              { "key": "target", "value": "300000" },
+              { "key": "saved", "value": "50000" },
+              { "key": "target_date", "value": "2026-12-31" }
+            ] }
+          }
+        },
+        {
+          "name": "Update goal",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{base_url}}/goals/1", "host": ["{{base_url}}"], "path": ["goals", "1"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "name", "value": "Emergency Fund" },
+              { "key": "type", "value": "emergency_fund" },
+              { "key": "target", "value": "350000" }
+            ] }
+          }
+        },
+        { "name": "Delete goal", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/goals/1", "host": ["{{base_url}}"], "path": ["goals", "1"] } } },
+        {
+          "name": "Contribute to goal",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/goals/1/contribute", "host": ["{{base_url}}"], "path": ["goals", "1", "contribute"] },
+            "body": { "mode": "urlencoded", "urlencoded": [{ "key": "amount", "value": "5000" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Reminders",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": { "raw": "{{base_url}}/reminders", "host": ["{{base_url}}"], "path": ["reminders"] } } },
+        {
+          "name": "Create reminder",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/bills", "host": ["{{base_url}}"], "path": ["bills"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "name", "value": "Netflix" },
+              { "key": "kind", "value": "subscription" },
+              { "key": "category", "value": "Entertainment" },
+              { "key": "amount", "value": "649" },
+              { "key": "due_date", "value": "2026-07-20" },
+              { "key": "repeat", "value": "monthly" },
+              { "key": "remind_days_before", "value": "2" }
+            ] }
+          }
+        },
+        {
+          "name": "Update reminder",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{base_url}}/bills/1", "host": ["{{base_url}}"], "path": ["bills", "1"] },
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "name", "value": "Netflix" },
+              { "key": "kind", "value": "subscription" },
+              { "key": "amount", "value": "699" },
+              { "key": "due_date", "value": "2026-07-20" },
+              { "key": "repeat", "value": "monthly" },
+              { "key": "remind_days_before", "value": "3" }
+            ] }
+          }
+        },
+        { "name": "Delete reminder", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/bills/1", "host": ["{{base_url}}"], "path": ["bills", "1"] } } },
+        { "name": "Mark paid", "request": { "method": "POST", "url": { "raw": "{{base_url}}/bills/1/paid", "host": ["{{base_url}}"], "path": ["bills", "1", "paid"] } } }
+      ]
+    },
+    {
+      "name": "8. Family Finance",
+      "item": [
+        { "name": "Family hub", "request": { "method": "GET", "url": { "raw": "{{base_url}}/family", "host": ["{{base_url}}"], "path": ["family"] } } },
+        { "name": "Create family", "request": { "method": "POST", "url": { "raw": "{{base_url}}/family", "host": ["{{base_url}}"], "path": ["family"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "name", "value": "Sharma Family" }] } } },
+        { "name": "Delete family", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/family", "host": ["{{base_url}}"], "path": ["family"] } } },
+        { "name": "Leave family", "request": { "method": "POST", "url": { "raw": "{{base_url}}/family/leave", "host": ["{{base_url}}"], "path": ["family", "leave"] } } },
+        { "name": "Invite", "request": { "method": "POST", "url": { "raw": "{{base_url}}/family/invite", "host": ["{{base_url}}"], "path": ["family", "invite"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "email", "value": "wife@example.com" }, { "key": "role", "value": "partner" }] } } },
+        { "name": "Cancel invite", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/family/invitations/1", "host": ["{{base_url}}"], "path": ["family", "invitations", "1"] } } },
+        { "name": "Invite details (token)", "request": { "method": "GET", "url": { "raw": "{{base_url}}/family/join/TOKEN", "host": ["{{base_url}}"], "path": ["family", "join", "TOKEN"] } } },
+        { "name": "Accept invite", "request": { "method": "POST", "url": { "raw": "{{base_url}}/family/join/TOKEN", "host": ["{{base_url}}"], "path": ["family", "join", "TOKEN"] } } },
+        { "name": "Remove member", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/family/members/2", "host": ["{{base_url}}"], "path": ["family", "members", "2"] } } },
+        { "name": "Add shared expense", "request": { "method": "POST", "url": { "raw": "{{base_url}}/family/expenses", "host": ["{{base_url}}"], "path": ["family", "expenses"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "category", "value": "Groceries" }, { "key": "amount", "value": "2500" }, { "key": "description", "value": "Big Bazaar" }, { "key": "occurred_on", "value": "2026-07-10" }] } } },
+        { "name": "Delete shared expense", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/family/expenses/1", "host": ["{{base_url}}"], "path": ["family", "expenses", "1"] } } },
+        { "name": "Add family budget", "request": { "method": "POST", "url": { "raw": "{{base_url}}/family/budgets", "host": ["{{base_url}}"], "path": ["family", "budgets"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "category", "value": "Groceries" }, { "key": "limit", "value": "15000" }] } } },
+        { "name": "Delete family budget", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/family/budgets/1", "host": ["{{base_url}}"], "path": ["family", "budgets", "1"] } } }
+      ]
+    },
+    {
+      "name": "9. Insights",
+      "item": [
+        { "name": "Yearly insights", "request": { "method": "GET", "url": { "raw": "{{base_url}}/insights?year=2026", "host": ["{{base_url}}"], "path": ["insights"], "query": [{ "key": "year", "value": "2026" }] } } },
+        { "name": "Calendar", "request": { "method": "GET", "url": { "raw": "{{base_url}}/calendar?month=2026-07", "host": ["{{base_url}}"], "path": ["calendar"], "query": [{ "key": "month", "value": "2026-07" }] } } },
+        { "name": "Search", "request": { "method": "GET", "url": { "raw": "{{base_url}}/search?q=netflix", "host": ["{{base_url}}"], "path": ["search"], "query": [{ "key": "q", "value": "netflix" }] } } },
+        { "name": "Achievements", "request": { "method": "GET", "url": { "raw": "{{base_url}}/achievements", "host": ["{{base_url}}"], "path": ["achievements"] } } },
+        { "name": "Notifications", "request": { "method": "GET", "url": { "raw": "{{base_url}}/notifications", "host": ["{{base_url}}"], "path": ["notifications"] } } },
+        { "name": "Reports", "request": { "method": "GET", "url": { "raw": "{{base_url}}/reports?month=2026-07", "host": ["{{base_url}}"], "path": ["reports"], "query": [{ "key": "month", "value": "2026-07" }] } } },
+        { "name": "Reports — CSV export", "request": { "method": "GET", "url": { "raw": "{{base_url}}/reports/export?month=2026-07", "host": ["{{base_url}}"], "path": ["reports", "export"], "query": [{ "key": "month", "value": "2026-07" }] } } },
+        { "name": "Challenges", "request": { "method": "GET", "url": { "raw": "{{base_url}}/challenges", "host": ["{{base_url}}"], "path": ["challenges"] } } },
+        { "name": "Join challenge", "request": { "method": "POST", "url": { "raw": "{{base_url}}/challenges", "host": ["{{base_url}}"], "path": ["challenges"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "key", "value": "save_5000" }] } } },
+        { "name": "Log challenge progress", "request": { "method": "POST", "url": { "raw": "{{base_url}}/challenges/1/progress", "host": ["{{base_url}}"], "path": ["challenges", "1", "progress"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "amount", "value": "500" }] } } },
+        { "name": "Leave challenge", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/challenges/1", "host": ["{{base_url}}"], "path": ["challenges", "1"] } } }
+      ]
+    },
+    {
+      "name": "10. Secure Vault",
+      "item": [
+        { "name": "Gate (status)", "request": { "method": "GET", "url": { "raw": "{{base_url}}/vault/gate", "host": ["{{base_url}}"], "path": ["vault", "gate"] } } },
+        { "name": "Set / change PIN", "request": { "method": "POST", "url": { "raw": "{{base_url}}/vault/pin", "host": ["{{base_url}}"], "path": ["vault", "pin"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "pin", "value": "1234" }, { "key": "pin_confirmation", "value": "1234" }, { "key": "current_pin", "value": "" }] } } },
+        { "name": "Unlock", "request": { "method": "POST", "url": { "raw": "{{base_url}}/vault/unlock", "host": ["{{base_url}}"], "path": ["vault", "unlock"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "pin", "value": "1234" }] } } },
+        { "name": "Lock", "request": { "method": "POST", "url": { "raw": "{{base_url}}/vault/lock", "host": ["{{base_url}}"], "path": ["vault", "lock"] } } },
+        { "name": "List documents", "request": { "method": "GET", "url": { "raw": "{{base_url}}/vault?category=all&search=", "host": ["{{base_url}}"], "path": ["vault"], "query": [{ "key": "category", "value": "all" }, { "key": "search", "value": "" }] } } },
+        {
+          "name": "Upload document (multipart)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/vault/documents", "host": ["{{base_url}}"], "path": ["vault", "documents"] },
+            "body": { "mode": "formdata", "formdata": [
+              { "key": "category", "value": "aadhaar", "type": "text" },
+              { "key": "title", "value": "Aadhaar Card", "type": "text" },
+              { "key": "notes", "value": "", "type": "text" },
+              { "key": "file", "type": "file", "src": [] }
+            ] }
+          }
+        },
+        { "name": "View document", "request": { "method": "GET", "url": { "raw": "{{base_url}}/vault/documents/1/view", "host": ["{{base_url}}"], "path": ["vault", "documents", "1", "view"] } } },
+        { "name": "Download document", "request": { "method": "GET", "url": { "raw": "{{base_url}}/vault/documents/1/download", "host": ["{{base_url}}"], "path": ["vault", "documents", "1", "download"] } } },
+        {
+          "name": "Update document (multipart)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/vault/documents/1", "host": ["{{base_url}}"], "path": ["vault", "documents", "1"] },
+            "body": { "mode": "formdata", "formdata": [
+              { "key": "category", "value": "aadhaar", "type": "text" },
+              { "key": "title", "value": "Aadhaar Card (updated)", "type": "text" }
+            ] }
+          }
+        },
+        { "name": "Delete document", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/vault/documents/1", "host": ["{{base_url}}"], "path": ["vault", "documents", "1"] } } }
+      ]
+    },
+    {
+      "name": "11. Settings & Profile",
+      "item": [
+        { "name": "Get profile", "request": { "method": "GET", "url": { "raw": "{{base_url}}/profile", "host": ["{{base_url}}"], "path": ["profile"] } } },
+        { "name": "Update profile", "request": { "method": "PUT", "url": { "raw": "{{base_url}}/profile", "host": ["{{base_url}}"], "path": ["profile"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "name", "value": "Rahul Sharma" }, { "key": "email", "value": "rahul@example.com" }] } } },
+        { "name": "Update photo (multipart)", "request": { "method": "POST", "url": { "raw": "{{base_url}}/profile/photo", "host": ["{{base_url}}"], "path": ["profile", "photo"] }, "body": { "mode": "formdata", "formdata": [{ "key": "photo", "type": "file", "src": [] }] } } },
+        { "name": "Remove photo", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/profile/photo", "host": ["{{base_url}}"], "path": ["profile", "photo"] } } },
+        { "name": "Change password", "request": { "method": "PUT", "url": { "raw": "{{base_url}}/password", "host": ["{{base_url}}"], "path": ["password"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "current_password", "value": "password" }, { "key": "password", "value": "NewPass!234" }, { "key": "password_confirmation", "value": "NewPass!234" }] } } },
+        { "name": "Delete account", "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/account", "host": ["{{base_url}}"], "path": ["account"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "password", "value": "password" }] } } },
+        { "name": "Get region", "request": { "method": "GET", "url": { "raw": "{{base_url}}/settings/region", "host": ["{{base_url}}"], "path": ["settings", "region"] } } },
+        { "name": "Update region", "request": { "method": "PUT", "url": { "raw": "{{base_url}}/settings/region", "host": ["{{base_url}}"], "path": ["settings", "region"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "currency", "value": "INR" }, { "key": "locale", "value": "en-IN" }, { "key": "country", "value": "IN" }] } } },
+        { "name": "Get notifications", "request": { "method": "GET", "url": { "raw": "{{base_url}}/settings/notifications", "host": ["{{base_url}}"], "path": ["settings", "notifications"] } } },
+        { "name": "Update notifications", "request": { "method": "PUT", "url": { "raw": "{{base_url}}/settings/notifications", "host": ["{{base_url}}"], "path": ["settings", "notifications"] }, "body": { "mode": "urlencoded", "urlencoded": [{ "key": "notifications_enabled", "value": "1" }, { "key": "channels[bill_reminders]", "value": "1" }, { "key": "channels[budget_alerts]", "value": "1" }, { "key": "channels[goal_milestones]", "value": "1" }, { "key": "channels[weekly_summary]", "value": "0" }, { "key": "channels[debt_tips]", "value": "1" }] } } },
+        { "name": "Data & privacy", "request": { "method": "GET", "url": { "raw": "{{base_url}}/settings/data-privacy", "host": ["{{base_url}}"], "path": ["settings", "data-privacy"] } } },
+        { "name": "Export my data", "request": { "method": "GET", "url": { "raw": "{{base_url}}/settings/data-privacy/export", "host": ["{{base_url}}"], "path": ["settings", "data-privacy", "export"] } } },
+        { "name": "Legal — privacy", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/legal/privacy", "host": ["{{base_url}}"], "path": ["legal", "privacy"] } } },
+        { "name": "Legal — terms", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/legal/terms", "host": ["{{base_url}}"], "path": ["legal", "terms"] } } }
+      ]
+    }
+  ]
+}

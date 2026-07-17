@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { CreditCard, Download, Eye, FileImage, FileText, HandCoins, Paperclip, Pencil, Plus, Scale, Sparkles, Trash2, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import {
     Dialog,
     DialogContent,
@@ -10,7 +11,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import InputError from '@/components/InputError.vue';
 import { useCurrency } from '@/composables/useCurrency';
 
 defineOptions({
@@ -86,6 +86,7 @@ const preview = computed(() => {
         : principal > 0
           ? Math.round((paid / principal) * 100)
           : 0;
+
     return {
         show: form.kind === 'loan' && balance > 0 && principal > 0,
         paid,
@@ -99,7 +100,10 @@ const preview = computed(() => {
 
 const pickDocs = (e: Event) => {
     const files = (e.target as HTMLInputElement).files;
-    if (files) form.documents = [...form.documents, ...Array.from(files)];
+
+    if (files) {
+form.documents = [...form.documents, ...Array.from(files)];
+}
 };
 const removeDoc = (i: number) => form.documents.splice(i, 1);
 
@@ -134,20 +138,29 @@ const openEdit = (d: DebtRow) => {
 };
 const submit = () => {
     const opts = { preserveScroll: true, forceFormData: true, onSuccess: () => (open.value = false) };
+
     // Files force a multipart POST; PHP can't parse multipart on PUT, so spoof
     // the method via a body field that Laravel routing understands.
-    if (editingId.value) form.transform((data) => ({ ...data, _method: 'put' })).post(`/debts/${editingId.value}`, opts);
-    else form.transform((data) => data).post('/debts', opts);
+    if (editingId.value) {
+form.transform((data) => ({ ...data, _method: 'put' })).post(`/debts/${editingId.value}`, opts);
+} else {
+form.transform((data) => data).post('/debts', opts);
+}
 };
 
 // record payment
 const payTarget = ref<DebtRow | null>(null);
 const payForm = useForm({ amount: '' });
 const submitPayment = () => {
-    if (!payTarget.value) return;
+    if (!payTarget.value) {
+return;
+}
+
     payForm.post(`/debts/${payTarget.value.id}/payment`, {
         preserveScroll: true,
-        onSuccess: () => { payTarget.value = null; payForm.reset(); },
+        onSuccess: () => {
+ payTarget.value = null; payForm.reset(); 
+},
     });
 };
 
@@ -155,7 +168,10 @@ const submitPayment = () => {
 const deleteTarget = ref<DebtRow | null>(null);
 const del = useForm({});
 const confirmDelete = () => {
-    if (!deleteTarget.value) return;
+    if (!deleteTarget.value) {
+return;
+}
+
     del.delete(`/debts/${deleteTarget.value.id}`, { preserveScroll: true, onSuccess: () => (deleteTarget.value = null) });
 };
 
@@ -163,7 +179,11 @@ const confirmDelete = () => {
 const attachForm = useForm({ documents: [] as File[] });
 const attachToDebt = (debtId: number, e: Event) => {
     const files = (e.target as HTMLInputElement).files;
-    if (!files || !files.length) return;
+
+    if (!files || !files.length) {
+return;
+}
+
     attachForm.documents = Array.from(files);
     attachForm.post(`/debts/${debtId}/documents`, {
         preserveScroll: true,

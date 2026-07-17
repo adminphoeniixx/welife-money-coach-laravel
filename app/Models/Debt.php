@@ -25,13 +25,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $credit_limit_cents
  * @property int|null $min_due_cents
  * @property int|null $due_day
+ * @property int|null $statement_day
  * @property string $currency
  * @property string $status
  */
 #[Fillable([
     'user_id', 'name', 'institution', 'kind', 'category', 'principal_cents',
     'balance_cents', 'interest_rate', 'emi_cents', 'total_emis', 'emis_paid',
-    'credit_limit_cents', 'min_due_cents', 'due_day', 'currency', 'status',
+    'credit_limit_cents', 'min_due_cents', 'due_day', 'statement_day', 'currency', 'status',
     'opened_on', 'closed_at',
 ])]
 class Debt extends Model
@@ -48,6 +49,7 @@ class Debt extends Model
             'credit_limit_cents' => 'integer',
             'min_due_cents' => 'integer',
             'due_day' => 'integer',
+            'statement_day' => 'integer',
             'opened_on' => 'date',
             'closed_at' => 'date',
         ];
@@ -115,5 +117,11 @@ class Debt extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(DebtDocument::class);
+    }
+
+    /** @return HasMany<DebtPayment, $this> */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(DebtPayment::class);
     }
 }

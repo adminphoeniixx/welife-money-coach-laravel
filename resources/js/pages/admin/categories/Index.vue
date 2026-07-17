@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { Pencil, Plus, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,7 +18,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import InputError from '@/components/InputError.vue';
 
 interface Category {
     id: number;
@@ -103,16 +103,23 @@ function destroy(category: Category) {
     if (!window.confirm(`Delete category "${category.name}"?`)) {
         return;
     }
+
     router.delete(`/admin/categories/${category.id}`, { preserveScroll: true });
 }
 
 const grouped = computed(() => {
     const map = new Map<string, Category[]>();
+
     for (const c of props.categories) {
         const key = c.group ?? 'Ungrouped';
-        if (!map.has(key)) map.set(key, []);
+
+        if (!map.has(key)) {
+map.set(key, []);
+}
+
         map.get(key)!.push(c);
     }
+
     return Array.from(map.entries());
 });
 </script>

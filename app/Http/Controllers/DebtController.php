@@ -108,6 +108,14 @@ class DebtController extends Controller
             'closed_at' => $closed ? Carbon::now() : null,
         ]);
 
+        $debt->payments()->create([
+            'user_id' => $debt->user_id,
+            'amount_cents' => Money::toCents($validated['amount']),
+            'balance_after_cents' => $newBalance,
+            'emi_number' => $debt->isCard() ? null : $emisPaid,
+            'paid_on' => Carbon::now(),
+        ]);
+
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => $closed ? '🎉 Paid off! '.$debt->name.' is now closed.' : 'Payment recorded.',
@@ -155,6 +163,7 @@ class DebtController extends Controller
             'limit' => $d->credit_limit_cents ? Money::toRupees($d->credit_limit_cents) : null,
             'min_due' => $d->min_due_cents ? Money::toRupees($d->min_due_cents) : null,
             'due_day' => $d->due_day,
+            'statement_day' => $d->statement_day,
             'utilisation' => $d->isCard() ? $d->utilisation() : null,
             'paid_percent' => $d->principal_cents > 0
                 ? max(0, min(100, round(($d->principal_cents - $d->balance_cents) / $d->principal_cents * 100)))
@@ -191,6 +200,7 @@ class DebtController extends Controller
             'credit_limit' => ['nullable', 'numeric', 'min:0', 'max:1000000000'],
             'min_due' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
             'due_day' => ['nullable', 'integer', 'min:1', 'max:31'],
+            'statement_day' => ['nullable', 'integer', 'min:1', 'max:31'],
             'total_emis' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'emis_paid' => ['nullable', 'integer', 'min:0', 'max:1000'],
         ]);
@@ -213,6 +223,7 @@ class DebtController extends Controller
             'credit_limit_cents' => $isCard && isset($v['credit_limit']) ? Money::toCents($v['credit_limit']) : null,
             'min_due_cents' => $isCard && isset($v['min_due']) ? Money::toCents($v['min_due']) : null,
             'due_day' => $v['due_day'] ?? null,
+            'statement_day' => $isCard ? ($v['statement_day'] ?? null) : null,
             'status' => 'active',
         ];
     }

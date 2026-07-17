@@ -25,7 +25,10 @@ export function useVoice() {
     let rec: InstanceType<SpeechCtor> | null = null;
 
     const start = (onText: (text: string) => void) => {
-        if (!Ctor) return;
+        if (!Ctor) {
+return;
+}
+
         rec = new Ctor();
         rec.lang = 'en-IN';
         rec.interimResults = false;
@@ -74,6 +77,7 @@ export function parseSpokenTransaction(text: string): {
     const amount = numMatch ? numMatch[1] : '';
 
     let category = '';
+
     for (const [word, cat] of Object.entries(CATEGORY_KEYWORDS)) {
         if (lower.includes(word)) {
             category = cat;

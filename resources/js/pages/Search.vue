@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { useDebounceFn } from '@vueuse/core';
 import { ArrowLeftRight, CreditCard, Receipt, Search as SearchIcon, Wallet } from '@lucide/vue';
+import { useDebounceFn } from '@vueuse/core';
 import { ref } from 'vue';
 import { useCurrency } from '@/composables/useCurrency';
 

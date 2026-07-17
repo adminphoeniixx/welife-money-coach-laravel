@@ -6,9 +6,7 @@ export type User = {
     is_admin?: boolean;
     suspended_at?: string | null;
     email_verified_at: string | null;
-    /* @chisel-2fa */
     two_factor_enabled?: boolean;
-    /* @end-chisel-2fa */
     created_at: string;
     updated_at: string;
     [key: string]: unknown;
@@ -28,10 +26,8 @@ export type Passkey = {
 };
 /* @end-chisel-passkeys */
 
-/* @chisel-2fa */
 export type TwoFactorConfigContent = {
     title: string;
     description: string;
     buttonText: string;
 };
-/* @end-chisel-2fa */

@@ -53,16 +53,29 @@ function complete(r: DataReq) {
     const msg = r.type === 'deletion'
         ? `Complete deletion for ${r.user_email}? This permanently removes the account.`
         : `Mark the export request for ${r.user_email} as completed?`;
-    if (!window.confirm(msg)) return;
+
+    if (!window.confirm(msg)) {
+return;
+}
+
     router.patch(`/admin/compliance/${r.id}/complete`, {}, { preserveScroll: true });
 }
 function reject(r: DataReq) {
-    if (!window.confirm(`Reject the ${r.type} request for ${r.user_email}?`)) return;
+    if (!window.confirm(`Reject the ${r.type} request for ${r.user_email}?`)) {
+return;
+}
+
     router.patch(`/admin/compliance/${r.id}/reject`, {}, { preserveScroll: true });
 }
 function statusVariant(s: string) {
-    if (s === 'completed') return 'default';
-    if (s === 'rejected') return 'destructive';
+    if (s === 'completed') {
+return 'default';
+}
+
+    if (s === 'rejected') {
+return 'destructive';
+}
+
     return 'secondary';
 }
 function formatDate(v: string | null) {

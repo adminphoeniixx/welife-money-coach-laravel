@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { Pencil, Plus, ShieldCheck, Target, Trash2, TrendingUp } from '@lucide/vue';
 import { ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import {
     Dialog,
     DialogContent,
@@ -10,7 +11,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import InputError from '@/components/InputError.vue';
 import { useCurrency } from '@/composables/useCurrency';
 
 defineOptions({
@@ -37,8 +37,12 @@ const openBudget = (b?: BudgetRow) => {
 };
 const submitBudget = () => {
     const opts = { preserveScroll: true, onSuccess: () => (budgetOpen.value = false) };
-    if (budgetId.value) budgetForm.put(`/budgets/${budgetId.value}`, opts);
-    else budgetForm.post('/budgets', opts);
+
+    if (budgetId.value) {
+budgetForm.put(`/budgets/${budgetId.value}`, opts);
+} else {
+budgetForm.post('/budgets', opts);
+}
 };
 const delBudget = useForm({});
 const removeBudget = (b: BudgetRow) => delBudget.delete(`/budgets/${b.id}`, { preserveScroll: true });
@@ -62,8 +66,12 @@ const openGoal = (g?: GoalRow) => {
 };
 const submitGoal = () => {
     const opts = { preserveScroll: true, onSuccess: () => (goalOpen.value = false) };
-    if (goalId.value) goalForm.put(`/goals/${goalId.value}`, opts);
-    else goalForm.post('/goals', opts);
+
+    if (goalId.value) {
+goalForm.put(`/goals/${goalId.value}`, opts);
+} else {
+goalForm.post('/goals', opts);
+}
 };
 const delGoal = useForm({});
 const removeGoal = (g: GoalRow) => delGoal.delete(`/goals/${g.id}`, { preserveScroll: true });
@@ -72,10 +80,15 @@ const removeGoal = (g: GoalRow) => delGoal.delete(`/goals/${g.id}`, { preserveSc
 const contribTarget = ref<GoalRow | null>(null);
 const contribForm = useForm({ amount: '' });
 const submitContrib = () => {
-    if (!contribTarget.value) return;
+    if (!contribTarget.value) {
+return;
+}
+
     contribForm.post(`/goals/${contribTarget.value.id}/contribute`, {
         preserveScroll: true,
-        onSuccess: () => { contribTarget.value = null; contribForm.reset(); },
+        onSuccess: () => {
+ contribTarget.value = null; contribForm.reset(); 
+},
     });
 };
 </script>

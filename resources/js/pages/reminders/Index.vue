@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { AlertTriangle, CalendarClock, Check, Pencil, Plus, Repeat, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import {
     Dialog,
     DialogContent,
@@ -10,7 +11,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import InputError from '@/components/InputError.vue';
 import { useCurrency } from '@/composables/useCurrency';
 
 defineOptions({
@@ -69,8 +69,12 @@ const openEdit = (r: Reminder) => {
 };
 const submit = () => {
     const opts = { preserveScroll: true, onSuccess: () => (open.value = false) };
-    if (editingId.value) form.put(`/bills/${editingId.value}`, opts);
-    else form.post('/bills', opts);
+
+    if (editingId.value) {
+form.put(`/bills/${editingId.value}`, opts);
+} else {
+form.post('/bills', opts);
+}
 };
 
 const paidForm = useForm({});
@@ -79,7 +83,10 @@ const markPaid = (r: Reminder) => paidForm.post(`/bills/${r.id}/paid`, { preserv
 const deleteTarget = ref<Reminder | null>(null);
 const del = useForm({});
 const confirmDelete = () => {
-    if (!deleteTarget.value) return;
+    if (!deleteTarget.value) {
+return;
+}
+
     del.delete(`/bills/${deleteTarget.value.id}`, { preserveScroll: true, onSuccess: () => (deleteTarget.value = null) });
 };
 </script>

@@ -83,6 +83,7 @@ function destroy(user: AdminUser) {
     ) {
         return;
     }
+
     router.delete(`/admin/users/${user.id}`, { preserveScroll: true });
 }
 

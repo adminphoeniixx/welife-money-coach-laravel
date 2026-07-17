@@ -27,6 +27,7 @@ const printPage = () => window.print();
 
 const whatsappHref = computed(() => {
     const text = `MoneyCoach — ${props.label}\nIncome: ₹${props.summary.income.toLocaleString('en-IN')}\nExpenses: ₹${props.summary.expense.toLocaleString('en-IN')}\nSaved: ₹${props.summary.net.toLocaleString('en-IN')} (${props.summary.savings_rate}%)`;
+
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
 });
 </script>

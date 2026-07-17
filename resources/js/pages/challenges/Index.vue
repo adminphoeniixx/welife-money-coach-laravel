@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { Flag, Plus, Trophy, X } from '@lucide/vue';
 import { ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import {
     Dialog,
     DialogContent,
@@ -10,7 +11,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import InputError from '@/components/InputError.vue';
 import { useCurrency } from '@/composables/useCurrency';
 
 defineOptions({
@@ -36,10 +36,15 @@ const leaveChallenge = (id: number) => leave.delete(`/challenges/${id}`, { prese
 const logTarget = ref<Active | null>(null);
 const logForm = useForm({ amount: '' });
 const submitLog = () => {
-    if (!logTarget.value) return;
+    if (!logTarget.value) {
+return;
+}
+
     logForm.post(`/challenges/${logTarget.value.id}/progress`, {
         preserveScroll: true,
-        onSuccess: () => { logTarget.value = null; logForm.reset(); },
+        onSuccess: () => {
+ logTarget.value = null; logForm.reset(); 
+},
     });
 };
 </script>

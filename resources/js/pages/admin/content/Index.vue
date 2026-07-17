@@ -83,11 +83,18 @@ function openEdit(item: Item) {
 }
 function submit() {
     const opts = { preserveScroll: true, onSuccess: () => (dialogOpen.value = false) };
-    if (editing.value) form.patch(`/admin/content/${editing.value.id}`, opts);
-    else form.post('/admin/content', opts);
+
+    if (editing.value) {
+form.patch(`/admin/content/${editing.value.id}`, opts);
+} else {
+form.post('/admin/content', opts);
+}
 }
 function destroy(item: Item) {
-    if (!window.confirm(`Delete "${item.title}"?`)) return;
+    if (!window.confirm(`Delete "${item.title}"?`)) {
+return;
+}
+
     router.delete(`/admin/content/${item.id}`, { preserveScroll: true });
 }
 </script>

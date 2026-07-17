@@ -158,8 +158,15 @@ const PALETTE = ['#CC1D79', '#7B2FF7', '#06B7AD', '#F5A524', '#3B82F6', '#10B981
 const firstName = computed(() => props.user.name.split(' ')[0]);
 const greeting = computed(() => {
     const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
+
+    if (h < 12) {
+return 'Good morning';
+}
+
+    if (h < 17) {
+return 'Good afternoon';
+}
+
     return 'Good evening';
 });
 
@@ -174,8 +181,10 @@ const donut = computed(() => {
     const stops = props.spending.slices.map((s, i) => {
         const from = acc;
         acc += s.percent;
+
         return `${PALETTE[i % PALETTE.length]} ${from}% ${acc}%`;
     });
+
     return `conic-gradient(${stops.join(', ')})`;
 });
 
@@ -193,6 +202,7 @@ const tipIcon = (name: string) => {
         'piggy-bank': PiggyBank,
         scale: Scale,
     };
+
     return map[name] ?? Sparkles;
 };
 </script>

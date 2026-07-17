@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\CoachService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia;
@@ -78,7 +79,7 @@ class FinanceCoachTest extends TestCase
 
     public function test_priority_targets_highest_interest_debt(): void
     {
-        $snapshot = app(\App\Services\CoachService::class)->snapshot($this->seedUser());
+        $snapshot = app(CoachService::class)->snapshot($this->seedUser());
 
         $this->assertSame('Test Card', $snapshot['priority']['name']);
         $this->assertSame('Home Loan', $snapshot['debts'][1]['name']);

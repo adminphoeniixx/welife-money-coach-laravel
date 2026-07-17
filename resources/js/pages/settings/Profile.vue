@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, usePage } from '@inertiajs/vue3';
-/* @chisel-email-verification */
 import { Link } from '@inertiajs/vue3';
-/* @end-chisel-email-verification */
 import { computed, ref } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/DeleteUser.vue';
@@ -12,9 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/profile';
-/* @chisel-email-verification */
 import { send } from '@/routes/verification';
-/* @end-chisel-email-verification */
 
 defineOptions({
     layout: {
@@ -42,12 +38,19 @@ const initials = computed(() =>
         .toUpperCase(),
 );
 const currentAvatar = computed<string | null>(() => {
-    if (removePhoto.value) return null;
+    if (removePhoto.value) {
+return null;
+}
+
     return photoPreview.value ?? (user.value as { avatar_url?: string | null }).avatar_url ?? null;
 });
 const onPickPhoto = (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+
+    if (!file) {
+return;
+}
+
     removePhoto.value = false;
     photoPreview.value = URL.createObjectURL(file);
 };
@@ -122,7 +125,6 @@ const onPickPhoto = (e: Event) => {
                 <InputError class="mt-2" :message="errors.email" />
             </div>
 
-            <!-- @chisel-email-verification -->
             <div v-if="page.props.mustVerifyEmail && !user.email_verified_at">
                 <p class="-mt-4 text-sm text-muted-foreground">
                     Your email address is unverified.
@@ -142,7 +144,6 @@ const onPickPhoto = (e: Event) => {
                     A new verification link has been sent to your email address.
                 </div>
             </div>
-            <!-- @end-chisel-email-verification -->
 
             <div class="flex items-center gap-4">
                 <Button :disabled="processing" data-test="update-profile-button"
