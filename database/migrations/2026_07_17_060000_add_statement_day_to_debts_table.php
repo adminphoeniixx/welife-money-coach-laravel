@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('debts', 'statement_day')) {
+            return;
+        }
+
         Schema::table('debts', function (Blueprint $table) {
             $table->unsignedTinyInteger('statement_day')->nullable()->after('due_day'); // 1-31
         });
@@ -20,6 +24,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (! Schema::hasColumn('debts', 'statement_day')) {
+            return;
+        }
+
         Schema::table('debts', function (Blueprint $table) {
             $table->dropColumn('statement_day');
         });
