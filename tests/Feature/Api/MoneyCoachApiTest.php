@@ -252,7 +252,11 @@ class MoneyCoachApiTest extends TestCase
         ]);
 
         Sanctum::actingAs($user);
-        $this->getJson('/api/search?q=Netflix')
+
+        // Deliberately lower-case: search must be case-insensitive on every
+        // driver. (SQLite's `like` always is; PostgreSQL's is not, which is why
+        // the controller uses whereLike/ilike.)
+        $this->getJson('/api/search?q=netflix')
             ->assertOk()->assertJsonPath('count', 1);
     }
 

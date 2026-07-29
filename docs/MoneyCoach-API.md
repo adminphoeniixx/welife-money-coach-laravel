@@ -288,4 +288,38 @@ curl -s http://localhost:8000/api/dashboard \
   -H "Authorization: Bearer <TOKEN>" | jq
 ```
 
-Demo account (from `FinanceDemoSeeder`): **test@example.com / password**.
+## Demo data
+
+`php artisan db:seed` populates every authenticated endpoint above with realistic
+sample data, so each one can be called and inspected without creating anything first.
+Re-running the seeders rebuilds the data from scratch (ids change, nothing duplicates).
+
+| Account | Login | Role |
+| --- | --- | --- |
+| Rahul Sharma | **test@example.com / password** | main demo user |
+| Priya Sharma | **priya@example.com / password** | partner in the same family |
+
+**Vault PIN: `1234`** — `POST /vault/unlock` with it before calling the vault endpoints.
+
+What gets seeded (`FinanceDemoSeeder`, `VaultDemoSeeder`, `FamilyDemoSeeder`):
+
+- **Onboarding / settings** — onboarding completed, INR / en-IN / IN, primary goal
+  `get_out_of_debt`, notification channels with `weekly_summary` deliberately off.
+- **Transactions** — 6 months of income + expenses, so trends, calendar, search,
+  insights and reports all have history.
+- **Debts** — 2 loans + 2 credit cards, each with 6 months of payment history and
+  encrypted attachments (`GET /debts/{debt}` shows both).
+- **Assets** — 6 accounts (bank, cash, gold, FD, mutual fund, stocks) for net worth.
+- **Budgets & goals** — 5 category budgets (Entertainment intentionally over limit),
+  an emergency fund and a savings goal, both part-funded.
+- **Reminders** — 10 bills / EMIs / subscriptions, including one overdue.
+- **Challenges** — 2 active (one nearly done), 1 completed, 2 presets left to join.
+- **Vault** — 12 documents across categories, including a front/back pair.
+- **Family** — the "Sharma Family" household: 2 members, 1 pending invite, this
+  month's shared expenses and 4 family budgets (Education over limit).
+
+> **Seeding a remote database:** the vault and debt attachments are encrypted onto
+> the app's `local` disk with the app's `APP_KEY`. Run the seeders **on the same
+> machine that serves the app** — seeding a remote DB from a laptop leaves the
+> document rows pointing at blobs the server cannot read, and every
+> view/download returns "This document could not be decrypted."

@@ -2,16 +2,24 @@
 
 namespace Database\Seeders;
 
-use App\Models\Budget;
+use App\Models\Challenge;
 use App\Models\Debt;
+use App\Models\DebtDocument;
 use App\Models\User;
+use Database\Seeders\Support\DemoFile;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Seeds a rich, realistic finance dataset for the demo user so the coach
  * dashboard has something meaningful to show. Idempotent: re-running wipes
  * the target user's finance rows and rebuilds them.
+ *
+ * Between this seeder, {@see VaultDemoSeeder} and {@see FamilyDemoSeeder},
+ * every authenticated endpoint in routes/api.php answers with real data.
  */
 class FinanceDemoSeeder extends Seeder
 {
@@ -22,20 +30,50 @@ class FinanceDemoSeeder extends Seeder
             ['name' => 'Rahul Sharma', 'password' => bcrypt('password')],
         );
 
-        // Clean slate.
+        // Clean slate. Debt payments + debt documents cascade with the debts.
         $user->financeAccounts()->delete();
+        $this->purgeDebtDocuments($user);
         $user->debts()->delete();
         $user->entries()->delete();
         $user->budgets()->delete();
         $user->goals()->delete();
         $user->bills()->delete();
+        $user->challenges()->delete();
 
+        $this->seedPreferences($user);
         $this->seedAssets($user);
         $debts = $this->seedDebts($user);
         $this->seedGoals($user);
         $this->seedBudgets($user);
         $this->seedEntries($user);
         $this->seedBills($user, $debts);
+        $this->seedDebtPayments($user, $debts);
+        $this->seedDebtDocuments($user, $debts);
+        $this->seedChallenges($user);
+    }
+
+    /**
+     * Onboarding answers + region and notification preferences, so the
+     * onboarding / settings / profile endpoints return a configured account.
+     */
+    private function seedPreferences(User $user): void
+    {
+        $user->forceFill([
+            'currency' => 'INR',
+            'locale' => 'en-IN',
+            'country' => 'IN',
+            'primary_goal' => 'get_out_of_debt',
+            'notifications_enabled' => true,
+            'notification_prefs' => [
+                'bill_reminders' => true,
+                'budget_alerts' => true,
+                'goal_milestones' => true,
+                'weekly_summary' => false,
+                'debt_tips' => true,
+            ],
+            'onboarded' => true,
+            'email_verified_at' => $user->email_verified_at ?? Carbon::now(),
+        ])->save();
     }
 
     private function seedAssets(User $user): void
@@ -212,6 +250,122 @@ class FinanceDemoSeeder extends Seeder
                 'repeat' => 'monthly',
                 'remind_days_before' => 3,
                 'status' => $b['status'] ?? 'upcoming',
+            ]);
+        }
+    }
+
+    /**
+     * Six months of payment history per debt so GET /api/debts/{debt} shows a
+     * populated timeline. Balances walk backwards from today's balance.
+     *
+     * @param  array<string, Debt>  $debts
+     */
+    private function seedDebtPayments(User $user, array $debts): void
+    {
+        foreach ($debts as $debt) {
+            $balance = $debt->balance_cents;
+            $emiNumber = (int) ($debt->emis_paid ?? 0); // Cards track no EMI number.
+
+            for ($m = 0; $m < 6; $m++) {
+                $amount = $debt->emi_cents ?: (int) round($balance * 0.05);
+
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $debt->payments()->create([
+                    'user_id' => $user->id,
+                    'amount_cents' => $amount,
+                    'balance_after_cents' => max(0, $balance),
+                    'emi_number' => $debt->isCard() ? null : ($emiNumber > 0 ? $emiNumber : null),
+                    'paid_on' => Carbon::now()->startOfMonth()->subMonths($m)->day(min(5, $debt->due_day ?? 5)),
+                ]);
+
+                // Step backwards: the balance before this payment was higher.
+                $balance += $amount;
+                $emiNumber--;
+            }
+        }
+    }
+
+    /**
+     * Attach an encrypted sanction letter / statement to each debt so the
+     * debt-documents view + download endpoints have something to serve.
+     *
+     * @param  array<string, Debt>  $debts
+     */
+    private function seedDebtDocuments(User $user, array $debts): void
+    {
+        $attachments = [
+            'home' => [['Home Loan Sanction Letter.pdf', 'pdf'], ['Home Loan Statement.pdf', 'pdf']],
+            'car' => [['Car Loan Agreement.pdf', 'pdf']],
+            'hdfc_card' => [['HDFC Millennia Card.png', 'png']],
+            'icici_card' => [['ICICI Statement Jan.pdf', 'pdf']],
+        ];
+
+        foreach ($attachments as $key => $files) {
+            if (! isset($debts[$key])) {
+                continue;
+            }
+
+            foreach ($files as [$name, $kind]) {
+                $contents = $kind === 'pdf'
+                    ? DemoFile::pdf(pathinfo($name, PATHINFO_FILENAME))
+                    : DemoFile::png();
+
+                $path = 'debt-documents/'.$user->id.'/'.Str::uuid()->toString().'.enc';
+                Storage::disk(DebtDocument::DISK)->put($path, Crypt::encryptString($contents));
+
+                $debts[$key]->documents()->create([
+                    'user_id' => $user->id,
+                    'original_name' => $name,
+                    'mime_type' => $kind === 'pdf' ? 'application/pdf' : 'image/png',
+                    'size_bytes' => strlen($contents),
+                    'path' => $path,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Remove the encrypted blobs behind the user's debt attachments before the
+     * debts (and their rows) are wiped, so re-seeding doesn't orphan files.
+     */
+    private function purgeDebtDocuments(User $user): void
+    {
+        DebtDocument::where('user_id', $user->id)->get()
+            ->each(fn (DebtDocument $d) => Storage::disk(DebtDocument::DISK)->delete($d->path));
+    }
+
+    /**
+     * Two challenges in flight and one already won, plus the untouched presets
+     * the challenges endpoint offers alongside them.
+     */
+    private function seedChallenges(User $user): void
+    {
+        $now = Carbon::now();
+
+        $challenges = [
+            ['key' => 'save_10000', 'progress_cents' => 620000, 'status' => 'active',
+                'started_on' => $now->copy()->startOfMonth(), 'ends_on' => $now->copy()->endOfMonth()],
+            ['key' => 'no_spend_7', 'progress_cents' => 400, 'status' => 'active',
+                'started_on' => $now->copy()->subDays(4), 'ends_on' => $now->copy()->addDays(3)],
+            ['key' => 'save_5000', 'progress_cents' => 500000, 'status' => 'completed',
+                'started_on' => $now->copy()->subMonth()->startOfMonth(), 'ends_on' => $now->copy()->subMonth()->endOfMonth()],
+        ];
+
+        foreach ($challenges as $c) {
+            $preset = Challenge::PRESETS[$c['key']];
+
+            $user->challenges()->create([
+                'key' => $c['key'],
+                'title' => $preset['title'],
+                'description' => $preset['description'],
+                'target_cents' => $preset['target'],
+                'progress_cents' => $c['progress_cents'],
+                'status' => $c['status'],
+                'started_on' => $c['started_on'],
+                'ends_on' => $c['ends_on'],
             ]);
         }
     }

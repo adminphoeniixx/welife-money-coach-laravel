@@ -25,8 +25,8 @@ class UserController extends Controller
         $users = User::query()
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
+                    $q->whereLike('name', "%{$search}%")
+                        ->orWhereLike('email', "%{$search}%");
                 });
             })
             ->when($filter === 'admins', fn ($q) => $q->where('is_admin', true))

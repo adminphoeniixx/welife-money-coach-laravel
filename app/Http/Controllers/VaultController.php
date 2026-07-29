@@ -89,9 +89,9 @@ class VaultController extends Controller
 
         $documents = $request->user()->documents()
             ->when($search !== '', fn ($q) => $q->where(function ($inner) use ($search) {
-                $inner->where('title', 'like', "%{$search}%")
-                    ->orWhere('notes', 'like', "%{$search}%")
-                    ->orWhere('original_name', 'like', "%{$search}%");
+                $inner->whereLike('title', "%{$search}%")
+                    ->orWhereLike('notes', "%{$search}%")
+                    ->orWhereLike('original_name', "%{$search}%");
             }))
             ->when($category !== 'all' && $category !== '', fn ($q) => $q->where('category', $category))
             ->latest()

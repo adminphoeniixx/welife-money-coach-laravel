@@ -21,9 +21,9 @@ class AuditLogController extends Controller
             ->with('user:id,name')
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('action', 'like', "%{$search}%")
-                        ->orWhere('user_name', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%");
+                    $q->whereLike('action', "%{$search}%")
+                        ->orWhereLike('user_name', "%{$search}%")
+                        ->orWhereLike('description', "%{$search}%");
                 });
             })
             ->latest()

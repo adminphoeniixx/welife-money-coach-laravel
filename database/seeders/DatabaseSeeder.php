@@ -40,6 +40,9 @@ class DatabaseSeeder extends Seeder
             SettingSeeder::class,
             DataRequestSeeder::class,
             FinanceDemoSeeder::class,
+            VaultDemoSeeder::class,
+            // After FinanceDemoSeeder — it wipes the demo user's entries.
+            FamilyDemoSeeder::class,
         ]);
     }
 }
