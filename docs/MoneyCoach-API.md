@@ -288,6 +288,11 @@ curl -s http://localhost:8000/api/dashboard \
   -H "Authorization: Bearer <TOKEN>" | jq
 ```
 
+## Screen-wise docs (app developers ke liye)
+
+Kaun si screen pe kaun si API call karni hai — har screen ki alag file:
+**[`docs/screens/`](screens/README.md)**
+
 ## Demo data
 
 `php artisan db:seed` populates every authenticated endpoint above with realistic
