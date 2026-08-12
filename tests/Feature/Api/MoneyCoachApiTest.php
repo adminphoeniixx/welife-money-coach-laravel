@@ -109,6 +109,24 @@ class MoneyCoachApiTest extends TestCase
             ->assertJsonPath('totals.expense', 640.5);
     }
 
+    public function test_expense_categories_include_the_users_custom_budget_categories(): void
+    {
+        $user = User::factory()->create();
+        $user->budgets()->create(['category' => 'Pet Care', 'limit_cents' => 500000]);
+
+        Sanctum::actingAs($user);
+
+        $categories = $this->getJson('/api/transactions')
+            ->assertOk()
+            ->json('categories.expense');
+
+        // Without this the budget is unspendable: the Add Expense picker would
+        // never offer "Pet Care", so its `spent` could never leave zero.
+        $this->assertContains('Pet Care', $categories);
+        $this->assertContains('Food', $categories);
+        $this->assertSame(array_unique($categories), $categories);
+    }
+
     public function test_cannot_update_another_users_entry(): void
     {
         $owner = User::factory()->create();

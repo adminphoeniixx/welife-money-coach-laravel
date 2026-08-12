@@ -38,7 +38,10 @@ class TransactionController extends Controller
 
         return response()->json([
             'filter' => $type,
-            'categories' => self::CATEGORIES,
+            'categories' => [
+                'income' => self::CATEGORIES['income'],
+                'expense' => $this->expenseCategories($request),
+            ],
             'totals' => [
                 'income' => Money::toRupees($incomeCents),
                 'expense' => Money::toRupees($expenseCents),
@@ -51,6 +54,23 @@ class TransactionController extends Controller
                     'items' => $rows->map($this->present(...))->values()->all(),
                 ])->values()->all(),
         ]);
+    }
+
+    /**
+     * Suggested expense categories plus every category the user has budgeted for,
+     * so a budget created with a custom name is still pickable when adding an expense.
+     *
+     * @return list<string>
+     */
+    private function expenseCategories(Request $request): array
+    {
+        $budgeted = $request->user()->budgets()->whereNull('household_id')->pluck('category');
+
+        return collect(self::CATEGORIES['expense'])
+            ->merge($budgeted)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function store(Request $request): JsonResponse
