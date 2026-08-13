@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\StampsUserCurrency;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,8 @@ use Illuminate\Support\Carbon;
 #[Fillable(['user_id', 'name', 'type', 'target_cents', 'saved_cents', 'currency', 'target_date'])]
 class Goal extends Model
 {
+    use StampsUserCurrency;
+
     protected function casts(): array
     {
         return [

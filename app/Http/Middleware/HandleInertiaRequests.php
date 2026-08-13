@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Currency;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Every amount in the UI is rendered in the signed-in user's own
+            // currency (see resources/js/composables/useCurrency.ts).
+            'currency' => Currency::forUser($request->user()),
             'impersonating' => $request->session()->has('impersonator_id')
                 ? ['name' => $request->user()?->name]
                 : null,

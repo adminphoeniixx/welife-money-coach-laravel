@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\StampsUserCurrency;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['user_id', 'name', 'type', 'balance_cents', 'currency', 'note'])]
 class FinanceAccount extends Model
 {
+    use StampsUserCurrency;
+
     protected $table = 'finance_accounts';
 
     protected function casts(): array

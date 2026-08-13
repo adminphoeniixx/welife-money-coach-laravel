@@ -3,6 +3,9 @@ export type User = {
     name: string;
     email: string;
     avatar?: string;
+    currency?: string;
+    locale?: string;
+    country?: string | null;
     is_admin?: boolean;
     suspended_at?: string | null;
     email_verified_at: string | null;

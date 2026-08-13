@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Goal;
 use App\Support\Money;
+use App\Support\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class GoalController extends Controller
 {
@@ -83,7 +85,7 @@ class GoalController extends Controller
     {
         $v = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'type' => ['required', 'in:emergency_fund,savings'],
+            'type' => ['required', Rule::in(Options::goalTypeKeys())],
             'target' => ['required', 'numeric', 'min:1', 'max:1000000000'],
             'saved' => ['nullable', 'numeric', 'min:0', 'max:1000000000'],
             'target_date' => ['nullable', 'date'],

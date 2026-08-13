@@ -32,7 +32,7 @@ const props = defineProps<{
     budgets?: FamilyBudget[];
 }>();
 
-const { fmt } = useCurrency();
+const { fmt, symbol } = useCurrency();
 const today = new Date().toISOString().slice(0, 10);
 const roleLabel = (r: string) => ({ owner: 'Owner', partner: 'Partner', member: 'Member' }[r] ?? r);
 
@@ -254,7 +254,7 @@ const removeBudget = (id: number) => delBudget.delete(`/family/budgets/${id}`, {
                         <InputError :message="expenseForm.errors.category" class="mt-1" />
                     </div>
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Amount (₹)</label>
+                        <label class="mb-1.5 block text-sm font-medium">Amount ({{ symbol }})</label>
                         <input v-model="expenseForm.amount" type="number" step="0.01" min="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                         <InputError :message="expenseForm.errors.amount" class="mt-1" />
                     </div>
@@ -288,7 +288,7 @@ const removeBudget = (id: number) => delBudget.delete(`/family/budgets/${id}`, {
                     <InputError :message="budgetForm.errors.category" class="mt-1" />
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">Monthly limit (₹)</label>
+                    <label class="mb-1.5 block text-sm font-medium">Monthly limit ({{ symbol }})</label>
                     <input v-model="budgetForm.limit" type="number" step="0.01" min="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                     <InputError :message="budgetForm.errors.limit" class="mt-1" />
                 </div>

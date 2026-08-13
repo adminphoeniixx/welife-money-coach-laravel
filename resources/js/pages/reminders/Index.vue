@@ -38,7 +38,7 @@ defineProps<{
     subscription_monthly: number;
 }>();
 
-const { fmt } = useCurrency();
+const { fmt, symbol } = useCurrency();
 const today = new Date().toISOString().slice(0, 10);
 const when = (r: Reminder) =>
     r.days < 0 ? `${Math.abs(r.days)} days overdue`
@@ -184,7 +184,7 @@ return;
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Amount (₹)</label>
+                        <label class="mb-1.5 block text-sm font-medium">Amount ({{ symbol }})</label>
                         <input v-model="form.amount" type="number" step="0.01" min="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                         <InputError :message="form.errors.amount" class="mt-1" />
                     </div>

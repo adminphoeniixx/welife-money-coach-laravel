@@ -22,7 +22,7 @@ interface GoalRow { id: number; name: string; type: string; target: number; save
 
 defineProps<{ budgets: BudgetRow[]; goals: GoalRow[] }>();
 
-const { fmt } = useCurrency();
+const { fmt, symbol } = useCurrency();
 
 // ---- Budgets ----
 const budgetOpen = ref(false);
@@ -172,7 +172,7 @@ return;
                     <InputError :message="budgetForm.errors.category" class="mt-1" />
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">Monthly limit (₹)</label>
+                    <label class="mb-1.5 block text-sm font-medium">Monthly limit ({{ symbol }})</label>
                     <input v-model="budgetForm.limit" type="number" step="0.01" min="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                     <InputError :message="budgetForm.errors.limit" class="mt-1" />
                 </div>
@@ -211,12 +211,12 @@ return;
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Target (₹)</label>
+                        <label class="mb-1.5 block text-sm font-medium">Target ({{ symbol }})</label>
                         <input v-model="goalForm.target" type="number" step="0.01" min="1" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                         <InputError :message="goalForm.errors.target" class="mt-1" />
                     </div>
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Saved so far (₹)</label>
+                        <label class="mb-1.5 block text-sm font-medium">Saved so far ({{ symbol }})</label>
                         <input v-model="goalForm.saved" type="number" step="0.01" min="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                     </div>
                 </div>
@@ -235,7 +235,7 @@ return;
                 <DialogDescription>Contribute toward {{ contribTarget?.name }}.</DialogDescription>
             </DialogHeader>
             <form @submit.prevent="submitContrib">
-                <label class="mb-1.5 block text-sm font-medium">Amount (₹)</label>
+                <label class="mb-1.5 block text-sm font-medium">Amount ({{ symbol }})</label>
                 <input v-model="contribForm.amount" type="number" step="0.01" min="0" autofocus class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                 <InputError :message="contribForm.errors.amount" class="mt-1" />
                 <DialogFooter class="mt-4 gap-2">

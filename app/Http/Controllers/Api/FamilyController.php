@@ -9,6 +9,7 @@ use App\Models\Household;
 use App\Models\HouseholdInvitation;
 use App\Models\User;
 use App\Support\Money;
+use App\Support\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -19,19 +20,37 @@ use Illuminate\Validation\ValidationException;
 
 class FamilyController extends Controller
 {
-    /** Suggested categories for shared family expenses (free text allowed). */
-    private const CATEGORIES = ['Groceries', 'Housing', 'Utilities', 'Education', 'Healthcare', 'Transport', 'Entertainment', 'Other'];
-
     /**
      * Family hub: null household when the user hasn't joined one. (family screen)
      */
     public function index(Request $request): JsonResponse
     {
+        return response()->json($this->snapshot($request));
+    }
+
+    /**
+     * The whole family screen. Returned by GET /family and by every family
+     * mutation, so the app never needs a follow-up request to refresh.
+     *
+     * @return array<string, mixed>
+     */
+    private function snapshot(Request $request): array
+    {
         $user = $request->user();
         $household = $user->currentHousehold();
 
+        // No family yet — every key is still present, just empty, so the app
+        // never has to branch on missing fields.
         if ($household === null) {
-            return response()->json(['household' => null, 'categories' => self::CATEGORIES]);
+            return [
+                'household' => null,
+                'categories' => Options::familyCategories(),
+                'can_manage' => false,
+                'my_role' => null,
+                'summary' => ['income' => 0, 'expense' => 0, 'net' => 0, 'education' => 0, 'members' => 0],
+                'expenses' => [],
+                'budgets' => [],
+            ];
         }
 
         $now = Carbon::now();
@@ -51,8 +70,8 @@ class FamilyController extends Controller
         $spentByCategory = $entries->where('type', 'expense')->groupBy('category')
             ->map(fn ($rows) => (int) $rows->sum('amount_cents'));
 
-        return response()->json([
-            'categories' => self::CATEGORIES,
+        return [
+            'categories' => Options::familyCategories(),
             'can_manage' => $role === 'owner',
             'my_role' => $role,
             'household' => [
@@ -83,6 +102,7 @@ class FamilyController extends Controller
                 'expense' => Money::toRupees($expenseCents),
                 'net' => Money::toRupees($incomeCents - $expenseCents),
                 'education' => Money::toRupees($educationCents),
+                'members' => $household->members()->count(),
             ],
             'expenses' => $entries->where('type', 'expense')->take(20)->map(fn (Entry $e) => [
                 'id' => $e->id,
@@ -91,7 +111,9 @@ class FamilyController extends Controller
                 'amount' => Money::toRupees($e->amount_cents),
                 'by' => $e->user?->name,
                 'mine' => $e->user_id === $user->id,
-                'date' => $e->occurred_on->format('d M'),
+                'occurred_on' => $e->occurred_on->format('Y-m-d'),
+                'date' => $e->occurred_on->format('Y-m-d'),
+                'label' => $e->occurred_on->format('d M'),
             ])->values(),
             'budgets' => $household->budgets()->orderBy('category')->get()->map(function (Budget $b) use ($spentByCategory) {
                 $spent = (int) ($spentByCategory[$b->category] ?? 0);
@@ -105,7 +127,7 @@ class FamilyController extends Controller
                     'exceeded' => $spent > $b->limit_cents,
                 ];
             })->values(),
-        ]);
+        ];
     }
 
     public function store(Request $request): JsonResponse
@@ -118,7 +140,10 @@ class FamilyController extends Controller
         $household = Household::create(['owner_id' => $user->id, 'name' => $validated['name']]);
         $household->members()->attach($user->id, ['role' => 'owner']);
 
-        return response()->json(['message' => 'Family created!', 'household_id' => $household->id], 201);
+        return response()->json([
+            'message' => 'Family created!',
+            'household_id' => $household->id,
+        ] + $this->snapshot($request), 201);
     }
 
     /**
@@ -151,7 +176,7 @@ class FamilyController extends Controller
                 'token' => $invitation->token,
                 'link' => route('family.join', $invitation->token),
             ],
-        ], 201);
+        ] + $this->snapshot($request), 201);
     }
 
     public function cancelInvite(Request $request, HouseholdInvitation $invitation): JsonResponse
@@ -159,9 +184,13 @@ class FamilyController extends Controller
         $household = $this->ownedHousehold($request);
         abort_unless($invitation->household_id === $household->id, 403);
 
+        $deletedId = $invitation->id;
         $invitation->delete();
 
-        return response()->json(['message' => 'Invitation cancelled.']);
+        return response()->json([
+            'message' => 'Invitation cancelled.',
+            'deleted_id' => $deletedId,
+        ] + $this->snapshot($request));
     }
 
     /**
@@ -197,7 +226,7 @@ class FamilyController extends Controller
         return response()->json([
             'message' => 'You joined '.$invitation->household->name.'!',
             'household_id' => $invitation->household_id,
-        ]);
+        ] + $this->snapshot($request));
     }
 
     public function removeMember(Request $request, User $member): JsonResponse
@@ -207,7 +236,10 @@ class FamilyController extends Controller
 
         $household->members()->detach($member->id);
 
-        return response()->json(['message' => 'Member removed.']);
+        return response()->json([
+            'message' => 'Member removed.',
+            'deleted_id' => $member->id,
+        ] + $this->snapshot($request));
     }
 
     /**
@@ -222,7 +254,7 @@ class FamilyController extends Controller
 
         $household->members()->detach($user->id);
 
-        return response()->json(['message' => 'You left the family.']);
+        return response()->json(['message' => 'You left the family.'] + $this->snapshot($request));
     }
 
     public function destroy(Request $request): JsonResponse
@@ -235,7 +267,7 @@ class FamilyController extends Controller
             $household->delete();
         });
 
-        return response()->json(['message' => 'Family deleted.']);
+        return response()->json(['message' => 'Family deleted.'] + $this->snapshot($request));
     }
 
     /**
@@ -261,7 +293,10 @@ class FamilyController extends Controller
             'occurred_on' => $validated['occurred_on'],
         ]);
 
-        return response()->json(['message' => 'Shared expense added.', 'id' => $entry->id], 201);
+        return response()->json([
+            'message' => 'Shared expense added.',
+            'id' => $entry->id,
+        ] + $this->snapshot($request), 201);
     }
 
     public function destroyExpense(Request $request, Entry $entry): JsonResponse
@@ -270,9 +305,13 @@ class FamilyController extends Controller
         abort_unless($entry->household_id === $household->id, 403);
         abort_unless($entry->user_id === $request->user()->id || $household->owner_id === $request->user()->id, 403);
 
+        $deletedId = $entry->id;
         $entry->delete();
 
-        return response()->json(['message' => 'Shared expense removed.']);
+        return response()->json([
+            'message' => 'Shared expense removed.',
+            'deleted_id' => $deletedId,
+        ] + $this->snapshot($request));
     }
 
     public function storeBudget(Request $request): JsonResponse
@@ -293,7 +332,10 @@ class FamilyController extends Controller
             'limit_cents' => Money::toCents($validated['limit']),
         ]);
 
-        return response()->json(['message' => 'Family budget set.', 'id' => $budget->id], 201);
+        return response()->json([
+            'message' => 'Family budget set.',
+            'id' => $budget->id,
+        ] + $this->snapshot($request), 201);
     }
 
     public function destroyBudget(Request $request, Budget $budget): JsonResponse
@@ -301,9 +343,13 @@ class FamilyController extends Controller
         $household = $this->ownedHousehold($request);
         abort_unless($budget->household_id === $household->id, 403);
 
+        $deletedId = $budget->id;
         $budget->delete();
 
-        return response()->json(['message' => 'Family budget removed.']);
+        return response()->json([
+            'message' => 'Family budget removed.',
+            'deleted_id' => $deletedId,
+        ] + $this->snapshot($request));
     }
 
     private function roleIn(Household $household, int $userId): ?string

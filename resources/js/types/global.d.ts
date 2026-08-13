@@ -19,6 +19,8 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             impersonating: { name: string | null } | null;
+            /** The signed-in user's currency — every amount is rendered in it. */
+            currency: { currency: string; locale: string; symbol: string };
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

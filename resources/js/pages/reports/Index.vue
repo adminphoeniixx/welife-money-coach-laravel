@@ -26,7 +26,7 @@ const PALETTE = ['#CC1D79', '#7B2FF7', '#06B7AD', '#F5A524', '#3B82F6', '#10B981
 const printPage = () => window.print();
 
 const whatsappHref = computed(() => {
-    const text = `MoneyCoach — ${props.label}\nIncome: ₹${props.summary.income.toLocaleString('en-IN')}\nExpenses: ₹${props.summary.expense.toLocaleString('en-IN')}\nSaved: ₹${props.summary.net.toLocaleString('en-IN')} (${props.summary.savings_rate}%)`;
+    const text = `MoneyCoach — ${props.label}\nIncome: ${fmt(props.summary.income)}\nExpenses: ${fmt(props.summary.expense)}\nSaved: ${fmt(props.summary.net)} (${props.summary.savings_rate}%)`;
 
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
 });

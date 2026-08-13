@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Bill;
 use App\Support\Money;
+use App\Support\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 class ReminderController extends Controller
 {
@@ -23,6 +25,9 @@ class ReminderController extends Controller
         $subscriptions = $bills->where('kind', 'subscription');
 
         return response()->json([
+            'kinds' => Options::reminderKinds(),
+            'repeat_options' => Options::repeatOptions(),
+            'remind_days_before_options' => Options::remindDaysBefore(),
             'overdue' => $bills->where('status', 'overdue')->map($this->present($today))->values(),
             'upcoming' => $bills->where('status', 'upcoming')->where('kind', '!=', 'subscription')->map($this->present($today))->values(),
             'subscriptions' => $subscriptions->map($this->present($today))->values(),
@@ -68,7 +73,8 @@ class ReminderController extends Controller
     {
         abort_unless($bill->user_id === $request->user()->id, 403);
 
-        if ($bill->repeat !== 'none') {
+        // `none` and `one_time` both mean "does not repeat".
+        if (! in_array($bill->repeat, ['none', 'one_time'], true)) {
             $next = match ($bill->repeat) {
                 'weekly' => $bill->due_date->copy()->addWeek(),
                 'yearly' => $bill->due_date->copy()->addYear(),
@@ -85,21 +91,41 @@ class ReminderController extends Controller
         ]);
     }
 
+    /** "Due today" / "Due in 3 days" / "Overdue by 2 days". */
+    private function relativeDay(int $days): string
+    {
+        return match (true) {
+            $days < 0 => abs($days).' day'.(abs($days) === 1 ? '' : 's').' overdue',
+            $days === 0 => 'Due today',
+            $days === 1 => 'Due tomorrow',
+            default => "Due in $days days",
+        };
+    }
+
     private function present(Carbon $today): callable
     {
-        return fn (Bill $b) => [
-            'id' => $b->id,
-            'name' => $b->name,
-            'kind' => $b->kind,
-            'category' => $b->category,
-            'amount' => Money::toRupees($b->amount_cents),
-            'due_date' => $b->due_date->format('D, d M'),
-            'due_on' => $b->due_date->format('Y-m-d'),
-            'repeat' => $b->repeat,
-            'remind_days_before' => $b->remind_days_before,
-            'days' => (int) round($today->diffInDays($b->due_date, false)),
-            'status' => $b->status,
-        ];
+        return function (Bill $b) use ($today) {
+            $days = (int) round($today->diffInDays($b->due_date, false));
+
+            return [
+                'id' => $b->id,
+                'name' => $b->name,
+                'kind' => $b->kind,
+                'category' => $b->category,
+                'amount' => Money::toRupees($b->amount_cents),
+                // Machine-readable date; the label is for display only.
+                'due_date' => $b->due_date->format('Y-m-d'),
+                'due_on' => $b->due_date->format('Y-m-d'),
+                'label' => $b->due_date->format('D, d M'),
+                'when' => $this->relativeDay($days),
+                'repeat' => $b->repeat,
+                'remind_days_before' => $b->remind_days_before,
+                'days' => $days,
+                'overdue' => $b->status === 'overdue' || $days < 0,
+                'status' => $b->status,
+                'paid_on' => $b->paid_on?->format('Y-m-d'),
+            ];
+        };
     }
 
     /**
@@ -109,11 +135,11 @@ class ReminderController extends Controller
     {
         $v = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'kind' => ['required', 'in:bill,subscription,emi'],
+            'kind' => ['required', Rule::in(Options::reminderKinds())],
             'category' => ['nullable', 'string', 'max:60'],
             'amount' => ['required', 'numeric', 'min:0', 'max:100000000'],
             'due_date' => ['required', 'date'],
-            'repeat' => ['required', 'in:none,weekly,monthly,yearly'],
+            'repeat' => ['required', Rule::in(Options::repeatOptions())],
             'remind_days_before' => ['required', 'integer', 'min:0', 'max:30'],
         ]);
 

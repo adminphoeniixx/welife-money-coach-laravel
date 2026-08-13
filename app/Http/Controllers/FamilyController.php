@@ -8,6 +8,7 @@ use App\Models\Household;
 use App\Models\HouseholdInvitation;
 use App\Models\User;
 use App\Support\Money;
+use App\Support\Options;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -20,9 +21,6 @@ use Inertia\Response;
 
 class FamilyController extends Controller
 {
-    /** Suggested categories for shared family expenses (free text allowed). */
-    private const CATEGORIES = ['Groceries', 'Housing', 'Utilities', 'Education', 'Healthcare', 'Transport', 'Entertainment', 'Other'];
-
     /**
      * Family hub: create screen, or the shared dashboard when in a household.
      */
@@ -32,7 +30,7 @@ class FamilyController extends Controller
         $household = $user->currentHousehold();
 
         if ($household === null) {
-            return Inertia::render('family/Index', ['household' => null, 'categories' => self::CATEGORIES]);
+            return Inertia::render('family/Index', ['household' => null, 'categories' => Options::familyCategories()]);
         }
 
         $now = Carbon::now();
@@ -53,7 +51,7 @@ class FamilyController extends Controller
             ->map(fn ($rows) => (int) $rows->sum('amount_cents'));
 
         return Inertia::render('family/Index', [
-            'categories' => self::CATEGORIES,
+            'categories' => Options::familyCategories(),
             'can_manage' => $role === 'owner',
             'my_role' => $role,
             'household' => [

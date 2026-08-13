@@ -21,13 +21,20 @@ class CreateNewUser implements CreatesNewUsers
     {
         Validator::make($input, [
             ...$this->profileRules(),
+            ...$this->regionRules(),
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
+        $user = new User([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
         ]);
+
+        // The country picked on the form decides the currency everything is
+        // shown in from here on; no country means the app default.
+        $user->applyRegion($input['country'] ?? null, $input['currency'] ?? null, $input['locale'] ?? null)->save();
+
+        return $user;
     }
 }

@@ -17,21 +17,13 @@ class ChallengeController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $active = $request->user()->challenges()->latest()->get();
+        $user = $request->user();
+        $active = $user->challenges()->latest()->get();
         $joinedKeys = $active->pluck('key')->all();
 
         return response()->json([
-            'active' => $active->map(fn (Challenge $c) => [
-                'id' => $c->id,
-                'title' => $c->title,
-                'description' => $c->description,
-                'target' => Money::toRupees($c->target_cents),
-                'progress' => Money::toRupees($c->progress_cents),
-                'percent' => $c->progress(),
-                'status' => $c->status,
-                'days_left' => max(0, (int) round(Carbon::now()->startOfDay()->diffInDays($c->ends_on, false))),
-            ])->values(),
-            'presets' => collect(Challenge::PRESETS)
+            'active' => $active->map($this->present(...))->values(),
+            'presets' => collect(Challenge::presetsFor($user))
                 ->reject(fn ($_, $key) => in_array($key, $joinedKeys, true))
                 ->map(fn ($p, $key) => [
                     'key' => $key,
@@ -51,7 +43,8 @@ class ChallengeController extends Controller
             'key' => ['required', Rule::in(array_keys(Challenge::PRESETS))],
         ]);
 
-        $preset = Challenge::PRESETS[$validated['key']];
+        // Render the preset copy in the joining user's currency.
+        $preset = Challenge::presetsFor($request->user())[$validated['key']];
 
         $challenge = $request->user()->challenges()->firstOrCreate(
             ['key' => $validated['key'], 'status' => 'active'],
@@ -65,7 +58,11 @@ class ChallengeController extends Controller
             ],
         );
 
-        return response()->json(['message' => 'Challenge accepted! 💪', 'id' => $challenge->id], 201);
+        return response()->json([
+            'message' => 'Challenge accepted! 💪',
+            'id' => $challenge->id,
+            'challenge' => $this->present($challenge->fresh()),
+        ], 201);
     }
 
     /**
@@ -91,7 +88,30 @@ class ChallengeController extends Controller
             'message' => $done ? '🏆 Challenge complete: '.$challenge->title.'!' : 'Progress logged.',
             'completed' => $done,
             'percent' => $challenge->fresh()->progress(),
+            'challenge' => $this->present($challenge->fresh()),
         ]);
+    }
+
+    /**
+     * The one challenge shape used by the list and every mutation response.
+     *
+     * @return array<string, mixed>
+     */
+    private function present(Challenge $c): array
+    {
+        return [
+            'id' => $c->id,
+            'key' => $c->key,
+            'title' => $c->title,
+            'description' => $c->description,
+            'target' => Money::toRupees($c->target_cents),
+            'progress' => Money::toRupees($c->progress_cents),
+            'percent' => $c->progress(),
+            'status' => $c->status,
+            'started_on' => $c->started_on->format('Y-m-d'),
+            'ends_on' => $c->ends_on->format('Y-m-d'),
+            'days_left' => max(0, (int) round(Carbon::now()->startOfDay()->diffInDays($c->ends_on, false))),
+        ];
     }
 
     public function destroy(Request $request, Challenge $challenge): JsonResponse

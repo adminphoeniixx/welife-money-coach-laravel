@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Entry;
 use App\Support\Money;
+use App\Support\Options;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -12,12 +13,6 @@ use Inertia\Response;
 
 class TransactionController extends Controller
 {
-    /** Suggested categories offered in the UI (free text is still allowed). */
-    private const CATEGORIES = [
-        'income' => ['Salary', 'Business', 'Freelance', 'Rent', 'Interest', 'Dividends', 'Bonus', 'Gift', 'Refund', 'Other'],
-        'expense' => ['Food', 'Housing', 'Transport', 'Utilities', 'Loans', 'Insurance', 'Healthcare', 'Education', 'Shopping', 'Entertainment', 'Investments', 'Other'],
-    ];
-
     /**
      * Income and expense ledger for the current month, grouped by day.
      */
@@ -38,7 +33,10 @@ class TransactionController extends Controller
 
         return Inertia::render('transactions/Index', [
             'filter' => $type,
-            'categories' => self::CATEGORIES,
+            'categories' => [
+                'income' => Options::incomeCategories(),
+                'expense' => Options::expenseCategories(),
+            ],
             'totals' => [
                 'income' => Money::toRupees($incomeCents),
                 'expense' => Money::toRupees($expenseCents),

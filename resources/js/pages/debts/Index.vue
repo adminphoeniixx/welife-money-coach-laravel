@@ -49,7 +49,7 @@ const props = defineProps<{
     payoff_order: DebtRow[];
 }>();
 
-const { fmt } = useCurrency();
+const { fmt, symbol } = useCurrency();
 const PALETTE = ['#CC1D79', '#7B2FF7', '#06B7AD', '#F5A524', '#3B82F6', '#10B981'];
 
 const open = ref(false);
@@ -370,7 +370,7 @@ const deleteDoc = (docId: number) => {
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Outstanding (₹)</label>
+                        <label class="mb-1.5 block text-sm font-medium">Outstanding ({{ symbol }})</label>
                         <input v-model="form.balance" type="number" step="0.01" min="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                         <InputError :message="form.errors.balance" class="mt-1" />
                     </div>
@@ -382,15 +382,15 @@ const deleteDoc = (docId: number) => {
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div v-if="form.kind === 'loan'">
-                        <label class="mb-1.5 block text-sm font-medium">Original amount (₹)</label>
+                        <label class="mb-1.5 block text-sm font-medium">Original amount ({{ symbol }})</label>
                         <input v-model="form.principal" type="number" step="0.01" min="0" placeholder="optional" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                     </div>
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">{{ form.kind === 'credit_card' ? 'Min due (₹)' : 'EMI (₹)' }}</label>
+                        <label class="mb-1.5 block text-sm font-medium">{{ form.kind === 'credit_card' ? `Min due (${symbol})` : `EMI (${symbol})` }}</label>
                         <input v-model="form.emi" type="number" step="0.01" min="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                     </div>
                     <div v-if="form.kind === 'credit_card'">
-                        <label class="mb-1.5 block text-sm font-medium">Credit limit (₹)</label>
+                        <label class="mb-1.5 block text-sm font-medium">Credit limit ({{ symbol }})</label>
                         <input v-model="form.credit_limit" type="number" step="0.01" min="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                     </div>
                     <div v-if="form.kind === 'loan'">
@@ -465,7 +465,7 @@ const deleteDoc = (docId: number) => {
                 <DialogDescription>Reduce the balance on {{ payTarget?.name }} ({{ fmt(payTarget?.balance ?? 0) }} left).</DialogDescription>
             </DialogHeader>
             <form @submit.prevent="submitPayment">
-                <label class="mb-1.5 block text-sm font-medium">Amount (₹)</label>
+                <label class="mb-1.5 block text-sm font-medium">Amount ({{ symbol }})</label>
                 <input v-model="payForm.amount" type="number" step="0.01" min="0" autofocus class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                 <InputError :message="payForm.errors.amount" class="mt-1" />
                 <DialogFooter class="mt-4 gap-2">

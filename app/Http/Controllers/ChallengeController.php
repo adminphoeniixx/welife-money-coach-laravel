@@ -18,7 +18,8 @@ class ChallengeController extends Controller
      */
     public function index(Request $request): Response
     {
-        $active = $request->user()->challenges()->latest()->get();
+        $user = $request->user();
+        $active = $user->challenges()->latest()->get();
         $joinedKeys = $active->pluck('key')->all();
 
         return Inertia::render('challenges/Index', [
@@ -32,7 +33,7 @@ class ChallengeController extends Controller
                 'status' => $c->status,
                 'days_left' => max(0, (int) round(Carbon::now()->startOfDay()->diffInDays($c->ends_on, false))),
             ])->values(),
-            'presets' => collect(Challenge::PRESETS)
+            'presets' => collect(Challenge::presetsFor($user))
                 ->reject(fn ($_, $key) => in_array($key, $joinedKeys, true))
                 ->map(fn ($p, $key) => [
                     'key' => $key,
@@ -52,7 +53,8 @@ class ChallengeController extends Controller
             'key' => ['required', Rule::in(array_keys(Challenge::PRESETS))],
         ]);
 
-        $preset = Challenge::PRESETS[$validated['key']];
+        // Render the preset copy in the joining user's currency.
+        $preset = Challenge::presetsFor($request->user())[$validated['key']];
 
         $request->user()->challenges()->firstOrCreate(
             ['key' => $validated['key'], 'status' => 'active'],

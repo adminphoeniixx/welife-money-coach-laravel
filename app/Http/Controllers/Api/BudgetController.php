@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Budget;
+use App\Models\Entry;
 use App\Models\Goal;
 use App\Support\Money;
+use App\Support\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -28,20 +30,12 @@ class BudgetController extends Controller
             ->groupBy('category')
             ->pluck('spent', 'category');
 
-        $budgets = $user->budgets()->whereNull('household_id')->orderBy('category')->get()->map(function (Budget $b) use ($spentByCategory) {
-            $spent = (int) ($spentByCategory[$b->category] ?? 0);
-
-            return [
-                'id' => $b->id,
-                'category' => $b->category,
-                'limit' => Money::toRupees($b->limit_cents),
-                'spent' => Money::toRupees($spent),
-                'percent' => $b->limit_cents > 0 ? round($spent / $b->limit_cents * 100) : 0,
-                'exceeded' => $spent > $b->limit_cents,
-            ];
-        });
+        $budgets = $user->budgets()->whereNull('household_id')->orderBy('category')->get()
+            ->map(fn (Budget $b) => $this->presentBudget($b, (int) ($spentByCategory[$b->category] ?? 0)));
 
         return response()->json([
+            'budget_categories' => Options::expenseCategories(),
+            'goal_types' => Options::goalTypes(),
             'budgets' => $budgets->values(),
             'goals' => $user->goals()->latest()->get()->map($this->presentGoal(...))->values(),
         ]);
@@ -73,15 +67,35 @@ class BudgetController extends Controller
     }
 
     /**
+     * The one budget shape used by the list and by every mutation response.
+     *
      * @return array<string, mixed>
      */
-    private function presentBudget(Budget $b): array
+    private function presentBudget(Budget $b, ?int $spentCents = null): array
     {
+        $spentCents ??= $this->spentThisMonth($b);
+
         return [
             'id' => $b->id,
             'category' => $b->category,
             'limit' => Money::toRupees($b->limit_cents),
+            'spent' => Money::toRupees($spentCents),
+            'percent' => $b->limit_cents > 0 ? round($spentCents / $b->limit_cents * 100) : 0,
+            'exceeded' => $spentCents > $b->limit_cents,
         ];
+    }
+
+    /** Current-month spend in a budget's category. */
+    private function spentThisMonth(Budget $b): int
+    {
+        $now = Carbon::now();
+
+        return (int) Entry::query()
+            ->where('user_id', $b->user_id)
+            ->where('type', 'expense')
+            ->where('category', $b->category)
+            ->whereBetween('occurred_on', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
+            ->sum('amount_cents');
     }
 
     /**

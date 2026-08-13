@@ -5,18 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Entry;
 use App\Support\Money;
+use App\Support\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class TransactionController extends Controller
 {
-    /** Suggested categories offered in the UI (free text is still allowed). */
-    private const CATEGORIES = [
-        'income' => ['Salary', 'Business', 'Freelance', 'Rent', 'Interest', 'Dividends', 'Bonus', 'Gift', 'Refund', 'Other'],
-        'expense' => ['Food', 'Housing', 'Transport', 'Utilities', 'Loans', 'Insurance', 'Healthcare', 'Education', 'Shopping', 'Entertainment', 'Investments', 'Other'],
-    ];
-
     /**
      * Income and expense ledger for the current month, grouped by day.
      * (transactions screen)
@@ -38,10 +33,15 @@ class TransactionController extends Controller
 
         return response()->json([
             'filter' => $type,
+            // Master lists only — the app renders these as-is.
             'categories' => [
-                'income' => self::CATEGORIES['income'],
-                'expense' => $this->expenseCategories($request),
+                'income' => Options::incomeCategories(),
+                'expense' => Options::expenseCategories(),
             ],
+            // Extra categories this user has created (e.g. a custom budget),
+            // kept apart so the master lists stay clean.
+            'custom_categories' => $this->customCategories($request),
+            'payment_methods' => Options::paymentMethods(),
             'totals' => [
                 'income' => Money::toRupees($incomeCents),
                 'expense' => Money::toRupees($expenseCents),
@@ -49,28 +49,37 @@ class TransactionController extends Controller
             ],
             'groups' => $entries
                 ->groupBy(fn (Entry $e) => $e->occurred_on->format('Y-m-d'))
-                ->map(fn ($rows, $day) => [
-                    'date' => Carbon::parse((string) $day)->format('D, d M'),
-                    'items' => $rows->map($this->present(...))->values()->all(),
-                ])->values()->all(),
+                ->map(function ($rows, $day) {
+                    $date = Carbon::parse((string) $day);
+                    $net = $rows->sum(fn (Entry $e) => $e->type === 'income' ? $e->amount_cents : -$e->amount_cents);
+
+                    return [
+                        'date' => $date->format('Y-m-d'),
+                        'label' => $date->format('D, d M'),
+                        'total' => Money::toRupees((int) $net),
+                        'items' => $rows->map($this->present(...))->values()->all(),
+                    ];
+                })->values()->all(),
         ]);
     }
 
     /**
-     * Suggested expense categories plus every category the user has budgeted for,
-     * so a budget created with a custom name is still pickable when adding an expense.
+     * Categories this user has in play that are not in the master lists —
+     * from a custom budget or an older entry — so nothing they typed before
+     * disappears from the picker.
      *
      * @return list<string>
      */
-    private function expenseCategories(Request $request): array
+    private function customCategories(Request $request): array
     {
-        $budgeted = $request->user()->budgets()->whereNull('household_id')->pluck('category');
+        $known = array_merge(Options::incomeCategories(), Options::expenseCategories());
 
-        return collect(self::CATEGORIES['expense'])
-            ->merge($budgeted)
-            ->unique()
-            ->values()
-            ->all();
+        $custom = $request->user()->budgets()->whereNull('household_id')->pluck('category')
+            ->merge($request->user()->entries()->distinct()->pluck('category'))
+            ->filter(fn ($c) => is_string($c) && $c !== '' && ! in_array($c, $known, true))
+            ->unique()->sort()->all();
+
+        return array_values(array_map(strval(...), $custom));
     }
 
     public function store(Request $request): JsonResponse
@@ -80,6 +89,7 @@ class TransactionController extends Controller
         return response()->json([
             'message' => ucfirst($entry->type).' added.',
             'entry' => $this->present($entry),
+            'totals' => $this->monthTotals($request),
         ], 201);
     }
 
@@ -92,6 +102,7 @@ class TransactionController extends Controller
         return response()->json([
             'message' => 'Transaction updated.',
             'entry' => $this->present($entry->fresh()),
+            'totals' => $this->monthTotals($request),
         ]);
     }
 
@@ -99,9 +110,37 @@ class TransactionController extends Controller
     {
         abort_unless($entry->user_id === $request->user()->id, 403);
 
+        $deletedId = $entry->id;
         $entry->delete();
 
-        return response()->json(['message' => 'Transaction deleted.']);
+        return response()->json([
+            'message' => 'Transaction deleted.',
+            'deleted_id' => $deletedId,
+            'totals' => $this->monthTotals($request),
+        ]);
+    }
+
+    /**
+     * This month's income / expense / net, so a mutation response can refresh
+     * the header without a second request.
+     *
+     * @return array<string, float>
+     */
+    private function monthTotals(Request $request): array
+    {
+        $now = Carbon::now();
+        $entries = $request->user()->entries()
+            ->whereBetween('occurred_on', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
+            ->get(['type', 'amount_cents']);
+
+        $income = (int) $entries->where('type', 'income')->sum('amount_cents');
+        $expense = (int) $entries->where('type', 'expense')->sum('amount_cents');
+
+        return [
+            'income' => Money::toRupees($income),
+            'expense' => Money::toRupees($expense),
+            'net' => Money::toRupees($income - $expense),
+        ];
     }
 
     /**

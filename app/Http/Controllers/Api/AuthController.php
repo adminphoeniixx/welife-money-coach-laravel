@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Concerns\ProfileValidationRules;
 use App\Http\Controllers\Api\Concerns\PresentsUser;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Currency;
+use App\Support\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -14,7 +17,23 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    use PresentsUser;
+    use PresentsUser, ProfileValidationRules;
+
+    /**
+     * The countries / currencies the register screen can offer.
+     */
+    public function regions(): JsonResponse
+    {
+        return response()->json([
+            'countries' => Options::countries(),
+            'currencies' => Currency::codes(),
+            'currency_details' => Currency::options(),
+            'timezones' => Options::timezones(),
+            'number_formats' => Options::numberFormats(),
+            'default_country' => config('currencies.default_country'),
+            'default_currency' => Currency::default(),
+        ]);
+    }
 
     /**
      * Register a new account and return an API token. (register screen)
@@ -26,13 +45,24 @@ class AuthController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', PasswordRule::defaults()],
             'device_name' => ['nullable', 'string', 'max:120'],
+            ...$this->regionRules(),
         ]);
 
-        $user = User::create([
+        $user = new User([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => $validated['password'],
         ]);
+
+        // The country sent by the app decides its currency; it can be changed
+        // later from onboarding or the region settings screen.
+        $user->applyRegion(
+            $validated['country'] ?? null,
+            $validated['currency'] ?? null,
+            $validated['locale'] ?? null,
+            $validated['timezone'] ?? null,
+            $validated['number_format'] ?? null,
+        )->save();
 
         return response()->json([
             'token' => $user->createToken($this->deviceName($request))->plainTextToken,

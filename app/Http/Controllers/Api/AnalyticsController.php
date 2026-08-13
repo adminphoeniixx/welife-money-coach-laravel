@@ -31,7 +31,8 @@ class AnalyticsController extends Controller
         for ($m = 1; $m <= 12; $m++) {
             $rows = $entries->filter(fn ($e) => $e->occurred_on->month === $m);
             $byMonth[] = [
-                'month' => Carbon::create($year, $m, 1)->format('M'),
+                'month' => Carbon::create($year, $m, 1)->format('Y-m'),
+                'label' => Carbon::create($year, $m, 1)->format('M'),
                 'income' => Money::toRupees((int) $rows->where('type', 'income')->sum('amount_cents')),
                 'expense' => Money::toRupees((int) $rows->where('type', 'expense')->sum('amount_cents')),
             ];

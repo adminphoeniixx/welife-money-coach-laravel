@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Support\Currency;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -69,6 +70,9 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::registerView(fn () => Inertia::render('auth/Register', [
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            // The country picked here decides the currency the whole app uses.
+            'countries' => Currency::countryOptions(),
+            'defaultCountry' => config('currencies.default_country'),
         ]));
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/TwoFactorChallenge'));

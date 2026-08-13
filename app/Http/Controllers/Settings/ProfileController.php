@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Models\User;
+use App\Support\Currency;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -24,6 +26,7 @@ class ProfileController extends Controller
         return Inertia::render('settings/Profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            'countries' => Currency::countryOptions(),
         ]);
     }
 
@@ -33,8 +36,13 @@ class ProfileController extends Controller
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         $user = $request->user();
+        $validated = $request->validated();
+        $previousCurrency = $user->currency;
 
-        $user->fill($request->validated());
+        $user->fill(Arr::except($validated, ['country', 'currency', 'locale']));
+
+        // Changing country moves the whole app to that country's currency.
+        $user->applyRegion($validated['country'] ?? null, $validated['currency'] ?? null, $validated['locale'] ?? null);
 
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;
@@ -43,6 +51,10 @@ class ProfileController extends Controller
         $this->syncPhoto($request, $user);
 
         $user->save();
+
+        if ($user->currency !== $previousCurrency) {
+            $user->restampRecordCurrency();
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
 

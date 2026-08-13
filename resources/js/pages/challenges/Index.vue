@@ -22,7 +22,7 @@ interface Preset { key: string; title: string; description: string; target: numb
 
 defineProps<{ active: Active[]; presets: Preset[] }>();
 
-const { fmt } = useCurrency();
+const { fmt, symbol } = useCurrency();
 
 const join = useForm({ key: '' });
 const joinChallenge = (key: string) => {
@@ -116,7 +116,7 @@ return;
                 <DialogDescription>Add toward “{{ logTarget?.title }}”.</DialogDescription>
             </DialogHeader>
             <form @submit.prevent="submitLog">
-                <label class="mb-1.5 block text-sm font-medium">Amount (₹)</label>
+                <label class="mb-1.5 block text-sm font-medium">Amount ({{ symbol }})</label>
                 <input v-model="logForm.amount" type="number" step="0.01" min="0" autofocus class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                 <InputError :message="logForm.errors.amount" class="mt-1" />
                 <DialogFooter class="mt-4 gap-2">

@@ -58,7 +58,7 @@ class SearchController extends Controller
         return response()->json([
             'query' => $q,
             'results' => $results,
-            'count' => collect($results)->flatten(1)->count(),
+            'count' => array_sum(array_map('count', $results)),
         ]);
     }
 }

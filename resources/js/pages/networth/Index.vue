@@ -26,7 +26,7 @@ defineProps<{
     accounts: Account[];
 }>();
 
-const { fmt } = useCurrency();
+const { fmt, symbol } = useCurrency();
 const PALETTE = ['#CC1D79', '#7B2FF7', '#06B7AD', '#F5A524', '#3B82F6', '#10B981', '#EC4899', '#94A3B8'];
 
 const open = ref(false);
@@ -154,7 +154,7 @@ return;
                         </select>
                     </div>
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Value (₹)</label>
+                        <label class="mb-1.5 block text-sm font-medium">Value ({{ symbol }})</label>
                         <input v-model="form.balance" type="number" step="0.01" min="0" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />
                         <InputError :message="form.errors.balance" class="mt-1" />
                     </div>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\StampsUserCurrency;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['user_id', 'household_id', 'category', 'limit_cents', 'currency'])]
 class Budget extends Model
 {
+    use StampsUserCurrency;
+
     protected function casts(): array
     {
         return [

@@ -5,16 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Debt;
 use App\Models\DebtDocument;
 use App\Support\Money;
+use App\Support\Options;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DebtController extends Controller
 {
-    private const LOAN_CATEGORIES = ['home', 'vehicle', 'gold', 'personal', 'education', 'business', 'custom'];
-
     /**
      * Consolidated loans + credit cards with the avalanche payoff order.
      */
@@ -29,7 +29,7 @@ class DebtController extends Controller
             : 0.0;
 
         return Inertia::render('debts/Index', [
-            'loan_categories' => self::LOAN_CATEGORIES,
+            'loan_categories' => Options::loanCategories(),
             'summary' => [
                 'total' => Money::toRupees($totalCents),
                 'monthly' => Money::toRupees($emiCents),
@@ -192,7 +192,7 @@ class DebtController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'institution' => ['nullable', 'string', 'max:120'],
             'kind' => ['required', 'in:loan,credit_card'],
-            'category' => ['nullable', 'in:'.implode(',', self::LOAN_CATEGORIES)],
+            'category' => ['nullable', Rule::in(Options::loanCategories())],
             'interest_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'balance' => ['required', 'numeric', 'min:0', 'max:1000000000'],
             'principal' => ['nullable', 'numeric', 'min:0', 'max:1000000000'],

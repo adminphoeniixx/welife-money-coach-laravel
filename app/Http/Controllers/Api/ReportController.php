@@ -56,18 +56,20 @@ class ReportController extends Controller
     {
         [$start, $end, $month] = $this->range($request);
 
-        $entries = $request->user()->entries()
+        $user = $request->user();
+        $entries = $user->entries()
             ->whereBetween('occurred_on', [$start, $end])
             ->orderBy('occurred_on')->get();
 
         $filename = 'moneycoach-'.$month->format('Y-m').'.csv';
 
-        return response()->streamDownload(function () use ($entries) {
+        return response()->streamDownload(function () use ($entries, $user) {
             $out = fopen('php://output', 'w');
             if ($out === false) {
                 return;
             }
-            fputcsv($out, ['Date', 'Type', 'Category', 'Description', 'Paid to / From', 'Method', 'Amount (INR)']);
+            // Header names the user's own currency so the file is unambiguous.
+            fputcsv($out, ['Date', 'Type', 'Category', 'Description', 'Paid to / From', 'Method', 'Amount ('.$user->currency.')']);
             foreach ($entries as $e) {
                 /** @var Entry $e */
                 fputcsv($out, [

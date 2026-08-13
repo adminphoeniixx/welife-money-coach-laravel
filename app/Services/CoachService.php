@@ -66,11 +66,12 @@ class CoachService
         );
 
         $payoff = $this->simulatePayoff($debts, $emiCents);
-        $priority = $this->priorityPayment($debts, $bills);
+        $priority = $this->priorityPayment($debts, $bills, $user);
 
         return [
-            'currency' => 'INR',
-            'user' => ['name' => $user->name],
+            'currency' => $user->currency,
+            'currency_symbol' => $user->currencySymbol(),
+            'user' => ['id' => $user->id, 'name' => $user->name],
             'health' => $health,
             'kpis' => [
                 'net_worth' => $this->rupees($assetsCents - $liabilitiesCents),
@@ -93,16 +94,22 @@ class CoachService
                 'progress' => $this->debtProgress($debts),
             ],
             'emergency_fund' => $emergency ? [
+                'id' => $emergency->id,
                 'name' => $emergency->name,
+                'type' => $emergency->type,
                 'target' => $this->rupees($emergency->target_cents),
                 'saved' => $this->rupees($emergency->saved_cents),
                 'progress' => $emergency->progress(),
+                'target_date' => $emergency->target_date?->format('Y-m-d'),
             ] : null,
             'goals' => $goals->where('type', '!=', 'emergency_fund')->map(fn ($g) => [
+                'id' => $g->id,
                 'name' => $g->name,
+                'type' => $g->type,
                 'target' => $this->rupees($g->target_cents),
                 'saved' => $this->rupees($g->saved_cents),
                 'progress' => $g->progress(),
+                'target_date' => $g->target_date?->format('Y-m-d'),
             ])->values(),
             'budgets' => $this->budgetStatus($budgets, $monthEntries),
             'upcoming' => $this->upcomingBills($bills),
@@ -114,11 +121,15 @@ class CoachService
                 'name' => $d->name,
                 'institution' => $d->institution,
                 'kind' => $d->kind,
+                'category' => $d->category,
                 'balance' => $this->rupees($d->balance_cents),
                 'interest_rate' => (float) $d->interest_rate,
                 'emi' => $this->rupees($d->emi_cents),
                 'utilisation' => $d->isCard() ? $d->utilisation() : null,
-                'limit' => $d->credit_limit_cents ? $this->rupees($d->credit_limit_cents) : null,
+                // Same key as GET /api/debts — never `limit`.
+                'credit_limit' => $d->credit_limit_cents ? $this->rupees($d->credit_limit_cents) : null,
+                'min_due' => $d->min_due_cents ? $this->rupees($d->min_due_cents) : null,
+                'due_day' => $d->due_day,
             ])->values(),
         ];
     }
@@ -245,7 +256,7 @@ class CoachService
      * @param  Collection<int, Bill>  $bills
      * @return array<string, mixed>|null
      */
-    private function priorityPayment(Collection $debts, Collection $bills): ?array
+    private function priorityPayment(Collection $debts, Collection $bills, User $user): ?array
     {
         $focus = $debts->sortByDesc('interest_rate')->first();
 
@@ -259,6 +270,7 @@ class CoachService
             ->firstWhere('debt_id', $focus->id);
 
         return [
+            'id' => $focus->id,
             'name' => $focus->name,
             'institution' => $focus->institution,
             'kind' => $focus->kind,
@@ -272,8 +284,8 @@ class CoachService
                 rtrim(rtrim(number_format((float) $focus->interest_rate, 2), '0'), '.'),
             ),
             'reason' => sprintf(
-                'It costs about ₹%s in interest every month. Clearing it first saves the most money overall.',
-                number_format($monthlyInterestCents / 100),
+                'It costs about %s in interest every month. Clearing it first saves the most money overall.',
+                $user->money($monthlyInterestCents),
             ),
         ];
     }
@@ -375,6 +387,7 @@ class CoachService
             $pct = $budget->limit_cents > 0 ? round($spent / $budget->limit_cents * 100) : 0;
 
             return [
+                'id' => $budget->id,
                 'category' => $budget->category,
                 'spent' => $this->rupees($spent),
                 'limit' => $this->rupees($budget->limit_cents),
@@ -397,14 +410,20 @@ class CoachService
                 $days = (int) round(Carbon::now()->startOfDay()->diffInDays($bill->due_date, false));
 
                 return [
+                    'id' => $bill->id,
                     'name' => $bill->name,
                     'kind' => $bill->kind,
                     'category' => $bill->category,
                     'amount' => $this->rupees($bill->amount_cents),
-                    'due_date' => $bill->due_date->format('d M'),
+                    // Machine-readable; `label`/`when` carry the display copy.
+                    'due_date' => $bill->due_date->format('Y-m-d'),
+                    'label' => $bill->due_date->format('d M'),
                     'days' => $days,
                     'when' => $this->relativeDay($days),
                     'overdue' => $bill->status === 'overdue' || $days < 0,
+                    'repeat' => $bill->repeat,
+                    'remind_days_before' => $bill->remind_days_before,
+                    'status' => $bill->status,
                 ];
             })->values()->all();
     }
@@ -455,6 +474,7 @@ class CoachService
             $key = $m->format('Y-m');
             $slice = $rows->filter(fn ($r) => $r->occurred_on->format('Y-m') === $key);
             $months[] = [
+                'month' => $key,
                 'label' => $m->format('M'),
                 'income' => $this->rupees((int) $slice->where('type', 'income')->sum('amount_cents')),
                 'expense' => $this->rupees((int) $slice->where('type', 'expense')->sum('amount_cents')),
@@ -513,8 +533,8 @@ class CoachService
             ])->sum('amount_cents');
         if ($lastMonth > 0 && $expenseCents > $lastMonth * 1.1) {
             $tips[] = ['tone' => 'amber', 'icon' => 'trending-up', 'text' => sprintf(
-                'You have spent ₹%s more than the same point last month. Review your top categories.',
-                number_format(($expenseCents - $lastMonth) / 100),
+                'You have spent %s more than the same point last month. Review your top categories.',
+                $user->money((int) ($expenseCents - $lastMonth)),
             )];
         }
 
@@ -523,8 +543,8 @@ class CoachService
         if ($incomeCents > 0 && $savingsCents > 0) {
             $rate = round($savingsCents / $incomeCents * 100);
             $tips[] = ['tone' => 'teal', 'icon' => 'piggy-bank', 'text' => sprintf(
-                'Nice — you are saving ₹%s this month (%d%% of income). Automating a transfer keeps it consistent.',
-                number_format($savingsCents / 100),
+                'Nice — you are saving %s this month (%d%% of income). Automating a transfer keeps it consistent.',
+                $user->money($savingsCents),
                 $rate,
             )];
         } elseif ($incomeCents > 0) {
@@ -537,6 +557,10 @@ class CoachService
                 (int) round($emiCents / $incomeCents * 100),
             )];
         }
+
+        // `message` is the key the mobile app reads; `text` is kept for the
+        // web dashboard. They always carry identical copy.
+        $tips = array_map(fn (array $tip) => $tip + ['message' => $tip['text']], $tips);
 
         return array_slice($tips, 0, 4);
     }

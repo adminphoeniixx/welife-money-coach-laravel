@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\FamilyController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\InsightController;
 use App\Http\Controllers\Api\LegalController;
+use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReminderController;
@@ -36,6 +37,8 @@ use Illuminate\Support\Facades\Route;
 
 // --- Public: auth & password reset (welcome / login / register / forgot) ---
 Route::prefix('auth')->group(function () {
+    // Countries + currencies for the country picker on the register screen.
+    Route::get('regions', [AuthController::class, 'regions']);
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:6,1');
     Route::post('forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
@@ -51,6 +54,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('user', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::post('auth/logout-all', [AuthController::class, 'logoutAll']);
+
+    // Every dropdown / picker option the app renders.
+    Route::get('meta/options', [MetaController::class, 'options']);
 
     // Onboarding (onbCurrency / onbGoal / onbNotif)
     Route::get('onboarding', [OnboardingController::class, 'show']);

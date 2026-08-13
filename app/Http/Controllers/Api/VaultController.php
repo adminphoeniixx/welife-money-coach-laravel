@@ -118,9 +118,13 @@ class VaultController extends Controller
                 'category_label' => $doc->categoryLabel(),
                 'side' => $doc->side,
                 'is_image' => $doc->isImage(),
+                'file_name' => $doc->original_name,
                 'mime_type' => $doc->mime_type,
-                'size' => $this->humanSize($doc->size_bytes),
+                // Raw bytes for the app; `size_label` is the display string.
+                'size' => $doc->size_bytes,
+                'size_label' => $this->humanSize($doc->size_bytes),
                 'notes' => $doc->notes,
+                'created_at' => $doc->created_at?->toIso8601String(),
                 'uploaded_at' => $doc->created_at?->format('d M Y'),
             ])->values(),
         ]);

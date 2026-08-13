@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Support\Money;
 use Illuminate\Support\Carbon;
 
 /**
@@ -40,7 +39,7 @@ class InsightService
             ['key' => 'first_step', 'icon' => '🌱', 'title' => 'First Step', 'desc' => 'Logged your first transaction', 'earned' => $user->entries()->exists()],
             ['key' => 'net_positive', 'icon' => '📈', 'title' => 'In the Green', 'desc' => 'Positive net worth', 'earned' => $assets - $liabilities > 0],
             ['key' => 'debt_slayer', 'icon' => '⚔️', 'title' => 'Debt Slayer', 'desc' => 'Fully paid off a debt', 'earned' => $closedDebts > 0],
-            ['key' => 'big_saver', 'icon' => '💰', 'title' => 'Big Saver', 'desc' => 'Saved ₹50,000 in a month', 'earned' => $bestSavingMonth >= 5000000],
+            ['key' => 'big_saver', 'icon' => '💰', 'title' => 'Big Saver', 'desc' => 'Saved '.$user->money(5000000).' in a month', 'earned' => $bestSavingMonth >= 5000000],
             ['key' => 'emergency_ready', 'icon' => '🛡️', 'title' => 'Emergency Ready', 'desc' => 'Fully funded emergency fund', 'earned' => $emergencyReady],
             ['key' => 'goal_getter', 'icon' => '🎯', 'title' => 'Goal Getter', 'desc' => 'Reached a savings goal', 'earned' => $goalReached],
             ['key' => 'card_master', 'icon' => '💳', 'title' => 'Card Master', 'desc' => 'All cards under 30% utilisation', 'earned' => $cardsHealthy],
@@ -69,7 +68,7 @@ class InsightService
         // Overdue bills.
         foreach ($user->bills()->where('status', 'overdue')->get() as $bill) {
             $items[] = ['tone' => 'red', 'icon' => 'alert', 'title' => 'Payment overdue',
-                'text' => $bill->name.' ('.$this->rupees($bill->amount_cents).') was due '.$bill->due_date->diffForHumans().'.'];
+                'text' => $bill->name.' ('.$this->money($user, $bill->amount_cents).') was due '.$bill->due_date->diffForHumans().'.'];
         }
 
         // Due soon (next 3 days).
@@ -77,7 +76,7 @@ class InsightService
             $days = (int) round($now->copy()->startOfDay()->diffInDays($bill->due_date, false));
             if ($days >= 0 && $days <= 3) {
                 $items[] = ['tone' => 'amber', 'icon' => 'clock', 'title' => 'Due soon',
-                    'text' => $bill->name.' — '.$this->rupees($bill->amount_cents).' due '.($days === 0 ? 'today' : 'in '.$days.' day'.($days === 1 ? '' : 's')).'.'];
+                    'text' => $bill->name.' — '.$this->money($user, $bill->amount_cents).' due '.($days === 0 ? 'today' : 'in '.$days.' day'.($days === 1 ? '' : 's')).'.'];
             }
         }
 
@@ -97,7 +96,7 @@ class InsightService
             $used = (int) ($spent[$budget->category] ?? 0);
             if ($budget->limit_cents > 0 && $used > $budget->limit_cents) {
                 $items[] = ['tone' => 'amber', 'icon' => 'trending-up', 'title' => 'Budget exceeded',
-                    'text' => 'You have gone over your '.$budget->category.' budget ('.$this->rupees($used).' of '.$this->rupees($budget->limit_cents).').'];
+                    'text' => 'You have gone over your '.$budget->category.' budget ('.$this->money($user, $used).' of '.$this->money($user, $budget->limit_cents).').'];
             }
         }
 
@@ -106,10 +105,11 @@ class InsightService
         $expense = (int) $spent->sum();
         if ($income > 0 && $income - $expense > 0) {
             $items[] = ['tone' => 'teal', 'icon' => 'check', 'title' => 'On track',
-                'text' => 'Nice — you have saved '.$this->rupees($income - $expense).' so far this month. Keep it up!'];
+                'text' => 'Nice — you have saved '.$this->money($user, $income - $expense).' so far this month. Keep it up!'];
         }
 
-        return $items;
+        // `message` is what the mobile app reads; `text` stays for the web UI.
+        return array_map(fn (array $item) => $item + ['message' => $item['text']], $items);
     }
 
     private function bestMonthlySavings(User $user): int
@@ -126,8 +126,9 @@ class InsightService
         return empty($byMonth) ? 0 : (int) max($byMonth);
     }
 
-    private function rupees(int $cents): string
+    /** Render an amount in the currency this user signed up with. */
+    private function money(User $user, int $cents): string
     {
-        return '₹'.number_format(Money::toRupees($cents));
+        return $user->money($cents);
     }
 }

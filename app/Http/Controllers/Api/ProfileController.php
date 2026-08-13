@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\PresentsUser;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -21,7 +22,11 @@ class ProfileController extends Controller
      */
     public function show(Request $request): JsonResponse
     {
-        return response()->json(['user' => $this->userPayload($request->user())]);
+        $payload = $this->userPayload($request->user());
+
+        // `profile` is the key the app reads; `user` is kept for the web client
+        // and older builds. Both hold exactly the same object.
+        return response()->json(['profile' => $payload, 'user' => $payload]);
     }
 
     /**
@@ -34,6 +39,7 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:32'],
         ]);
 
         $user->fill($validated);
@@ -44,7 +50,7 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return response()->json(['message' => 'Profile updated.', 'user' => $this->userPayload($user->fresh())]);
+        return $this->profileResponse($user->fresh(), 'Profile updated.');
     }
 
     /**
@@ -67,7 +73,7 @@ class ProfileController extends Controller
 
         $user->update(['avatar_path' => $path]);
 
-        return response()->json(['message' => 'Photo updated.', 'user' => $this->userPayload($user->fresh())]);
+        return $this->profileResponse($user->fresh(), 'Photo updated.');
     }
 
     /**
@@ -82,7 +88,17 @@ class ProfileController extends Controller
             $user->update(['avatar_path' => null]);
         }
 
-        return response()->json(['message' => 'Photo removed.', 'user' => $this->userPayload($user->fresh())]);
+        return $this->profileResponse($user->fresh(), 'Photo removed.');
+    }
+
+    /**
+     * A mutation response carrying the fresh profile under both keys.
+     */
+    private function profileResponse(User $user, string $message): JsonResponse
+    {
+        $payload = $this->userPayload($user);
+
+        return response()->json(['message' => $message, 'profile' => $payload, 'user' => $payload]);
     }
 
     /**

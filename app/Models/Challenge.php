@@ -30,15 +30,37 @@ class Challenge extends Model
     /**
      * Preset challenges the user can join, keyed by slug.
      *
+     * `:amount` is replaced with the target rendered in the user's own
+     * currency — see presetsFor(). The targets themselves are not converted:
+     * a 5,000 challenge is 5,000 of whatever the user's currency is.
+     *
      * @var array<string, array{title:string, description:string, target:int}>
      */
     public const PRESETS = [
-        'save_5000' => ['title' => 'Save ₹5,000 this month', 'description' => 'Put ₹5,000 aside before the month ends.', 'target' => 500000],
-        'save_10000' => ['title' => 'Save ₹10,000 this month', 'description' => 'A bigger push — ₹10,000 into savings.', 'target' => 1000000],
+        'save_5000' => ['title' => 'Save :amount this month', 'description' => 'Put :amount aside before the month ends.', 'target' => 500000],
+        'save_10000' => ['title' => 'Save :amount this month', 'description' => 'A bigger push — :amount into savings.', 'target' => 1000000],
         'no_spend_7' => ['title' => 'No unnecessary spending for 7 days', 'description' => 'Avoid non-essential spending for a full week.', 'target' => 700],
         'cut_fuel_10' => ['title' => 'Cut fuel spending by 10%', 'description' => 'Trim your transport costs this month.', 'target' => 100000],
-        'cut_dining_3000' => ['title' => 'Trim dining by ₹3,000', 'description' => 'Cook more, order less — save ₹3,000 on food.', 'target' => 300000],
+        'cut_dining_3000' => ['title' => 'Trim dining by :amount', 'description' => 'Cook more, order less — save :amount on food.', 'target' => 300000],
     ];
+
+    /**
+     * The presets with their amounts written in the user's currency.
+     *
+     * @return array<string, array{title:string, description:string, target:int}>
+     */
+    public static function presetsFor(User $user): array
+    {
+        return array_map(function (array $preset) use ($user): array {
+            $amount = $user->money($preset['target']);
+
+            return [
+                'title' => str_replace(':amount', $amount, $preset['title']),
+                'description' => str_replace(':amount', $amount, $preset['description']),
+                'target' => $preset['target'],
+            ];
+        }, self::PRESETS);
+    }
 
     protected function casts(): array
     {

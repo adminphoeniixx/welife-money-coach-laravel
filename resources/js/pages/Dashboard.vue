@@ -16,6 +16,7 @@ import {
     Wallet,
 } from '@lucide/vue';
 import { computed } from 'vue';
+import { useCurrency } from '@/composables/useCurrency';
 import { dashboard } from '@/routes';
 
 defineOptions({
@@ -84,6 +85,7 @@ interface Upcoming {
     category: string | null;
     amount: number;
     due_date: string;
+    label: string;
     days: number;
     when: string;
     overdue: boolean;
@@ -112,7 +114,8 @@ interface DebtRow {
     interest_rate: number;
     emi: number;
     utilisation: number | null;
-    limit: number | null;
+    credit_limit: number | null;
+    min_due: number | null;
 }
 
 const props = defineProps<{
@@ -131,19 +134,7 @@ const props = defineProps<{
     debts: DebtRow[];
 }>();
 
-const currency = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-});
-const fmt = (n: number) => currency.format(n);
-const compact = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    notation: 'compact',
-    maximumFractionDigits: 1,
-});
-const fmtc = (n: number) => compact.format(n);
+const { fmt, fmtc } = useCurrency();
 
 const TONES: Record<string, string> = {
     green: '#10B981',

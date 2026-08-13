@@ -116,14 +116,17 @@ class MoneyCoachApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $categories = $this->getJson('/api/transactions')
-            ->assertOk()
-            ->json('categories.expense');
+        $response = $this->getJson('/api/transactions')->assertOk();
 
-        // Without this the budget is unspendable: the Add Expense picker would
-        // never offer "Pet Care", so its `spent` could never leave zero.
-        $this->assertContains('Pet Care', $categories);
+        $categories = $response->json('categories.expense');
+        $custom = $response->json('custom_categories');
+
+        // The master list stays clean — the app renders it as-is — while the
+        // user's own category is still offered, otherwise the budget would be
+        // unspendable and its `spent` could never leave zero.
         $this->assertContains('Food', $categories);
+        $this->assertNotContains('Pet Care', $categories);
+        $this->assertContains('Pet Care', $custom);
         $this->assertSame(array_unique($categories), $categories);
     }
 

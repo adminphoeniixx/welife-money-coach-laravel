@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\StampsUserCurrency;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,8 @@ use Illuminate\Support\Carbon;
 ])]
 class Bill extends Model
 {
+    use StampsUserCurrency;
+
     protected function casts(): array
     {
         return [

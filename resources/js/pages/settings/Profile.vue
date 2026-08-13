@@ -23,8 +23,23 @@ defineOptions({
     },
 });
 
+type Country = { code: string; name: string; currency: string; symbol: string };
+
+const props = defineProps<{
+    countries: Country[];
+}>();
+
 const page = usePage();
 const user = computed(() => page.props.auth.user);
+
+// Region: the country drives the currency every amount is rendered in.
+const country = ref(
+    user.value.country ??
+        props.countries.find(
+            (c) => c.currency === page.props.currency?.currency,
+        )?.code ??
+        '',
+);
 
 // Profile photo: live preview + remove flag.
 const photoPreview = ref<string | null>(null);
@@ -39,17 +54,21 @@ const initials = computed(() =>
 );
 const currentAvatar = computed<string | null>(() => {
     if (removePhoto.value) {
-return null;
-}
+        return null;
+    }
 
-    return photoPreview.value ?? (user.value as { avatar_url?: string | null }).avatar_url ?? null;
+    return (
+        photoPreview.value ??
+        (user.value as { avatar_url?: string | null }).avatar_url ??
+        null
+    );
 });
 const onPickPhoto = (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
 
     if (!file) {
-return;
-}
+        return;
+    }
 
     removePhoto.value = false;
     photoPreview.value = URL.createObjectURL(file);
@@ -77,22 +96,61 @@ return;
             <div class="grid gap-2">
                 <Label>Profile photo</Label>
                 <div class="flex items-center gap-4">
-                    <span class="grid size-16 flex-none place-items-center overflow-hidden rounded-full text-lg font-bold text-white" style="background: linear-gradient(135deg, #CC1D79 0%, #06B7AD 100%)">
-                        <img v-if="currentAvatar" :src="currentAvatar" alt="Profile photo" class="size-full object-cover" />
+                    <span
+                        class="grid size-16 flex-none place-items-center overflow-hidden rounded-full text-lg font-bold text-white"
+                        style="
+                            background: linear-gradient(
+                                135deg,
+                                #cc1d79 0%,
+                                #06b7ad 100%
+                            );
+                        "
+                    >
+                        <img
+                            v-if="currentAvatar"
+                            :src="currentAvatar"
+                            alt="Profile photo"
+                            class="size-full object-cover"
+                        />
                         <span v-else>{{ initials }}</span>
                     </span>
                     <div class="flex flex-wrap items-center gap-2">
-                        <label class="cursor-pointer rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-muted">
-                            {{ currentAvatar ? 'Change photo' : 'Upload photo' }}
-                            <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" class="hidden" @change="onPickPhoto" />
+                        <label
+                            class="cursor-pointer rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-muted"
+                        >
+                            {{
+                                currentAvatar ? 'Change photo' : 'Upload photo'
+                            }}
+                            <input
+                                type="file"
+                                name="photo"
+                                accept="image/png,image/jpeg,image/webp"
+                                class="hidden"
+                                @change="onPickPhoto"
+                            />
                         </label>
-                        <button v-if="currentAvatar" type="button" class="rounded-xl px-3 py-2 text-sm font-semibold text-[#CC1D79] hover:bg-[#CC1D79]/10" @click="removePhoto = true; photoPreview = null">
+                        <button
+                            v-if="currentAvatar"
+                            type="button"
+                            class="rounded-xl px-3 py-2 text-sm font-semibold text-[#CC1D79] hover:bg-[#CC1D79]/10"
+                            @click="
+                                removePhoto = true;
+                                photoPreview = null;
+                            "
+                        >
                             Remove
                         </button>
                     </div>
                 </div>
-                <input v-if="removePhoto" type="hidden" name="remove_photo" value="1" />
-                <p class="text-xs text-muted-foreground">JPG, PNG or WEBP · up to 4 MB.</p>
+                <input
+                    v-if="removePhoto"
+                    type="hidden"
+                    name="remove_photo"
+                    value="1"
+                />
+                <p class="text-xs text-muted-foreground">
+                    JPG, PNG or WEBP · up to 4 MB.
+                </p>
                 <InputError class="mt-1" :message="errors.photo" />
             </div>
 
@@ -123,6 +181,31 @@ return;
                     placeholder="Email address"
                 />
                 <InputError class="mt-2" :message="errors.email" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="country">Country</Label>
+                <select
+                    id="country"
+                    name="country"
+                    v-model="country"
+                    autocomplete="country"
+                    class="mt-1 block w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]"
+                >
+                    <option
+                        v-for="c in countries"
+                        :key="c.code"
+                        :value="c.code"
+                    >
+                        {{ c.name }} — {{ c.currency }} ({{ c.symbol }})
+                    </option>
+                </select>
+                <p class="text-sm text-muted-foreground">
+                    Every amount is shown in this country's currency. Changing
+                    it relabels your existing records — the numbers themselves
+                    are not converted.
+                </p>
+                <InputError class="mt-2" :message="errors.country" />
             </div>
 
             <div v-if="page.props.mustVerifyEmail && !user.email_verified_at">

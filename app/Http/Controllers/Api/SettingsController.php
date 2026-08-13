@@ -2,20 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Concerns\ProfileValidationRules;
 use App\Http\Controllers\Api\Concerns\PresentsUser;
 use App\Http\Controllers\Controller;
+use App\Support\Currency;
+use App\Support\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SettingsController extends Controller
 {
-    use PresentsUser;
-
-    /** Currencies offered on the region screen. */
-    private const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD'];
-
-    /** Notification channels the user can toggle (setNotif screen). */
-    private const NOTIF_CHANNELS = ['bill_reminders', 'budget_alerts', 'goal_milestones', 'weekly_summary', 'debt_tips'];
+    use PresentsUser, ProfileValidationRules;
 
     /**
      * Region / currency settings. (setRegion screen)
@@ -24,29 +21,49 @@ class SettingsController extends Controller
     {
         $user = $request->user();
 
+        $timezone = $user->timezone ?: Options::timezoneForCountry($user->country);
+
         return response()->json([
-            'currencies' => self::CURRENCIES,
+            // Current selection…
             'currency' => $user->currency,
+            'symbol' => $user->currencySymbol(),
             'locale' => $user->locale,
             'country' => $user->country,
+            'timezone' => $timezone,
+            'number_format' => $user->number_format,
+            // …and every option the pickers can offer.
+            'currencies' => Currency::codes(),
+            'currency_details' => Currency::options(),
+            'countries' => Options::countries(),
+            'timezones' => Options::timezones(),
+            'number_formats' => Options::numberFormats(),
         ]);
     }
 
+    /**
+     * Change the region. Sending a country alone switches the currency and
+     * locale with it; sending a currency alone overrides just the currency.
+     */
     public function updateRegion(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'currency' => ['required', 'in:'.implode(',', self::CURRENCIES)],
-            'locale' => ['nullable', 'string', 'max:12'],
-            'country' => ['nullable', 'string', 'size:2'],
-        ]);
+        $validated = $request->validate($this->regionRules());
 
-        $request->user()->update([
-            'currency' => $validated['currency'],
-            'locale' => $validated['locale'] ?? $request->user()->locale,
-            'country' => $validated['country'] ?? $request->user()->country,
-        ]);
+        $user = $request->user();
+        $previous = $user->currency;
 
-        return response()->json(['message' => 'Region settings saved.', 'user' => $this->userPayload($request->user()->fresh())]);
+        $user->applyRegion(
+            $validated['country'] ?? null,
+            $validated['currency'] ?? null,
+            $validated['locale'] ?? null,
+            $validated['timezone'] ?? null,
+            $validated['number_format'] ?? null,
+        )->save();
+
+        if ($user->currency !== $previous) {
+            $user->restampRecordCurrency();
+        }
+
+        return response()->json(['message' => 'Region settings saved.', 'user' => $this->userPayload($user->fresh())]);
     }
 
     /**
@@ -54,35 +71,41 @@ class SettingsController extends Controller
      */
     public function showNotifications(Request $request): JsonResponse
     {
-        $prefs = $request->user()->notification_prefs ?? [];
-
         return response()->json([
             'notifications_enabled' => $request->user()->notifications_enabled,
-            'channels' => collect(self::NOTIF_CHANNELS)->mapWithKeys(
-                fn (string $key) => [$key => (bool) ($prefs[$key] ?? true)]
-            ),
+            'channels' => $this->notificationPrefs($request->user()),
+            'available_channels' => Options::notificationChannels(),
         ]);
     }
 
     public function updateNotifications(Request $request): JsonResponse
     {
+        $channels = Options::notificationChannelKeys();
+
         $rules = ['notifications_enabled' => ['required', 'boolean']];
-        foreach (self::NOTIF_CHANNELS as $channel) {
+        foreach ($channels as $channel) {
             $rules["channels.{$channel}"] = ['nullable', 'boolean'];
         }
         $validated = $request->validate($rules);
 
         $prefs = [];
-        foreach (self::NOTIF_CHANNELS as $channel) {
+        foreach ($channels as $channel) {
             $prefs[$channel] = (bool) ($validated['channels'][$channel] ?? true);
         }
 
-        $request->user()->update([
+        $user = $request->user();
+        $user->update([
             'notifications_enabled' => $validated['notifications_enabled'],
             'notification_prefs' => $prefs,
         ]);
 
-        return response()->json(['message' => 'Notification settings saved.', 'user' => $this->userPayload($request->user()->fresh())]);
+        return response()->json([
+            'message' => 'Notification settings saved.',
+            'notifications_enabled' => $user->notifications_enabled,
+            'channels' => $this->notificationPrefs($user->fresh()),
+            'available_channels' => Options::notificationChannels(),
+            'user' => $this->userPayload($user->fresh()),
+        ]);
     }
 
     /**

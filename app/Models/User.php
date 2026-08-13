@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\Currency;
+use App\Support\Options;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -23,8 +25,11 @@ use Laravel\Sanctum\HasApiTokens;
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property string|null $phone
  * @property string $currency
  * @property string $locale
+ * @property string|null $timezone
+ * @property string $number_format
  * @property string|null $country
  * @property string|null $primary_goal
  * @property bool $notifications_enabled
@@ -43,7 +48,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'avatar_path', 'currency', 'locale', 'country', 'primary_goal', 'notifications_enabled', 'notification_prefs', 'onboarded'])]
+#[Fillable(['name', 'email', 'phone', 'password', 'avatar_path', 'currency', 'locale', 'timezone', 'number_format', 'country', 'primary_goal', 'notifications_enabled', 'notification_prefs', 'onboarded'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'vault_pin'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -66,9 +71,93 @@ class User extends Authenticatable implements PasskeyUser
     protected $attributes = [
         'currency' => 'INR',
         'locale' => 'en-IN',
+        'number_format' => 'indian',
         'notifications_enabled' => true,
         'onboarded' => false,
     ];
+
+    /**
+     * Apply a region choice: the country decides the currency, formatting
+     * locale, timezone and number grouping unless one is given explicitly.
+     *
+     * Unknown or missing values fall back to what the user already has, so a
+     * partial update (country only, currency only) never blanks the rest.
+     */
+    public function applyRegion(
+        ?string $country = null,
+        ?string $currency = null,
+        ?string $locale = null,
+        ?string $timezone = null,
+        ?string $numberFormat = null,
+    ): static {
+        $country = Currency::supportsCountry($country) ? strtoupper((string) $country) : null;
+
+        $this->country = $country ?? $this->country;
+
+        $this->currency = Currency::supports($currency)
+            ? strtoupper((string) $currency)
+            : ($country !== null ? Currency::forCountry($country) : Currency::normalise($this->currency));
+
+        $this->locale = $locale
+            ?: ($country !== null ? Currency::localeForCountry($country) : ($this->locale ?: Currency::locale($this->currency)));
+
+        $this->timezone = $timezone
+            ?: ($country !== null ? Options::timezoneForCountry($country) : ($this->timezone ?: Options::timezoneForCountry($this->country)));
+
+        $this->number_format = in_array($numberFormat, Options::numberFormatKeys(), true)
+            ? (string) $numberFormat
+            : ($country !== null
+                ? ($country === 'IN' ? 'indian' : 'international')
+                : ($this->number_format ?: 'indian'));
+
+        return $this;
+    }
+
+    /**
+     * Relabel the user's existing records with their current currency.
+     *
+     * Amounts are never converted — the app has no FX rates. This only keeps
+     * the stored currency code on each row honest after a region change, so
+     * exports do not claim an amount is in a currency the user left behind.
+     */
+    public function restampRecordCurrency(): void
+    {
+        foreach ([$this->entries(), $this->budgets(), $this->goals(), $this->debts(), $this->bills(), $this->financeAccounts()] as $records) {
+            $records->update(['currency' => $this->currency]);
+        }
+    }
+
+    /**
+     * The symbol amounts should be rendered with for this user.
+     */
+    public function currencySymbol(): string
+    {
+        return Currency::symbol($this->currency);
+    }
+
+    /**
+     * Format an amount held in minor units in this user's currency.
+     */
+    public function money(int $cents, bool $decimals = false): string
+    {
+        return Currency::format($cents, $this->currency, $this->formattingLocale(), $decimals);
+    }
+
+    /**
+     * The locale numbers are grouped with: the user's own locale, unless they
+     * asked for a specific grouping style on the region screen (1,00,000 vs
+     * 100,000), which wins.
+     */
+    public function formattingLocale(): string
+    {
+        $locale = $this->locale ?: Currency::locale($this->currency);
+
+        return match ($this->number_format) {
+            'indian' => 'en-IN',
+            'international' => str_starts_with($locale, 'en-IN') ? 'en-US' : $locale,
+            default => $locale,
+        };
+    }
 
     /**
      * Public URL of the profile photo, or null to fall back to initials.

@@ -7,14 +7,15 @@ use App\Models\Debt;
 use App\Models\DebtDocument;
 use App\Models\DebtPayment;
 use App\Support\Money;
+use App\Support\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 
 class DebtController extends Controller
 {
-    private const LOAN_CATEGORIES = ['home', 'vehicle', 'gold', 'personal', 'education', 'business', 'custom'];
-
     /**
      * Consolidated loans + credit cards with the avalanche payoff order.
      * (debts screen)
@@ -30,12 +31,14 @@ class DebtController extends Controller
             : 0.0;
 
         return response()->json([
-            'loan_categories' => self::LOAN_CATEGORIES,
+            'loan_categories' => Options::loanCategories(),
+            'kinds' => Options::debtKinds(),
             'summary' => [
                 'total' => Money::toRupees($totalCents),
                 'monthly' => Money::toRupees($emiCents),
                 'avg_apr' => $weightedApr,
                 'count' => $debts->count(),
+                'progress' => $this->overallProgress($debts),
             ],
             'loans' => $debts->where('kind', 'loan')->map($this->present(...))->values(),
             'cards' => $debts->where('kind', 'credit_card')->map($this->present(...))->values(),
@@ -167,6 +170,23 @@ class DebtController extends Controller
     }
 
     /**
+     * How much of everything borrowed has been repaid, 0-100.
+     *
+     * @param  Collection<int, Debt>  $debts
+     */
+    private function overallProgress(Collection $debts): float
+    {
+        $principal = (int) $debts->sum('principal_cents');
+        $balance = (int) $debts->sum('balance_cents');
+
+        if ($principal <= 0) {
+            return 0.0;
+        }
+
+        return max(0, min(100, round(($principal - $balance) / $principal * 100, 1)));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function present(Debt $d): array
@@ -183,7 +203,7 @@ class DebtController extends Controller
             'principal' => Money::toRupees($d->principal_cents),
             'interest_rate' => (float) $d->interest_rate,
             'emi' => Money::toRupees($d->emi_cents),
-            'limit' => $d->credit_limit_cents ? Money::toRupees($d->credit_limit_cents) : null,
+            'credit_limit' => $d->credit_limit_cents ? Money::toRupees($d->credit_limit_cents) : null,
             'min_due' => $d->min_due_cents ? Money::toRupees($d->min_due_cents) : null,
             'due_day' => $d->due_day,
             'statement_day' => $d->statement_day,
@@ -214,7 +234,7 @@ class DebtController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'institution' => ['nullable', 'string', 'max:120'],
             'kind' => ['required', 'in:loan,credit_card'],
-            'category' => ['nullable', 'in:'.implode(',', self::LOAN_CATEGORIES)],
+            'category' => ['nullable', Rule::in(Options::loanCategories())],
             'interest_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'balance' => ['required', 'numeric', 'min:0', 'max:1000000000'],
             'principal' => ['nullable', 'numeric', 'min:0', 'max:1000000000'],
