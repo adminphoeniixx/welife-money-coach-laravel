@@ -32,9 +32,10 @@ class GoalController extends Controller
     {
         abort_unless($goal->user_id === $request->user()->id, 403);
 
+        $deletedId = $goal->id;
         $goal->delete();
 
-        return response()->json(['message' => 'Goal removed.']);
+        return response()->json(['message' => 'Goal removed.', 'deleted_id' => $deletedId]);
     }
 
     /**

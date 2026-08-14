@@ -114,10 +114,14 @@ class DocumentController extends Controller
     {
         $this->authorizeOwner($request, $document);
 
+        $deletedId = $document->id;
         Storage::disk(self::DISK)->delete($document->path);
         $document->delete();
 
-        return response()->json(['message' => 'Document deleted from your vault.']);
+        return response()->json([
+            'message' => 'Document deleted from your vault.',
+            'deleted_id' => $deletedId,
+        ]);
     }
 
     /**

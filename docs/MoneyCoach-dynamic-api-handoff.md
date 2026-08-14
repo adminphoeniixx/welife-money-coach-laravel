@@ -116,7 +116,10 @@ Changing currency relabels the user's existing records — it never rewrites amo
 - **Errors** — Laravel's standard shape everywhere:
   `{ "message": "...", "errors": { "field": ["..."] } }` with `422` on validation.
 - **Mutations** return the updated resource (`entry`, `budget`, `goal`, `debt`,
-  `bill`, `challenge`, `profile`), never `{}`.
+  `bill`, `challenge`, `asset`, `profile`), never `{}`. Deletes return
+  `deleted_id` plus their screen's refreshed aggregate:
+  entries → `totals`, assets & debts → `summary`, reminders → `subscription_monthly`,
+  and every family mutation returns the **whole family screen**.
 - **Lists** are `[]` when empty, never `null`, and documented keys are always present.
 - **Ids** on everything editable.
 

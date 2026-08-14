@@ -61,9 +61,10 @@ class BudgetController extends Controller
     {
         abort_unless($budget->user_id === $request->user()->id, 403);
 
+        $deletedId = $budget->id;
         $budget->delete();
 
-        return response()->json(['message' => 'Budget removed.']);
+        return response()->json(['message' => 'Budget removed.', 'deleted_id' => $deletedId]);
     }
 
     /**

@@ -68,10 +68,11 @@ class DebtDocumentController extends Controller
     {
         $this->authorizeOwner($request, $document);
 
+        $deletedId = $document->id;
         Storage::disk(DebtDocument::DISK)->delete($document->path);
         $document->delete();
 
-        return response()->json(['message' => 'Document removed.']);
+        return response()->json(['message' => 'Document removed.', 'deleted_id' => $deletedId]);
     }
 
     private function authorizeOwner(Request $request, DebtDocument $document): void

@@ -362,6 +362,80 @@ class DynamicOptionsTest extends TestCase
         $this->assertNotEmpty($response->json('countries'));
     }
 
+    // --- Mutations return fresh data ---------------------------------------
+
+    public function test_entry_mutations_return_the_entry_and_refreshed_totals(): void
+    {
+        $this->user();
+
+        $created = $this->postJson('/api/entries', [
+            'type' => 'expense', 'category' => 'Food', 'amount' => 640.50,
+            'occurred_on' => now()->toDateString(),
+        ])->assertCreated();
+
+        $id = $created->json('entry.id');
+        $this->assertNotNull($id);
+        $this->assertEqualsWithDelta(640.50, $created->json('totals.expense'), 0.001);
+
+        $deleted = $this->deleteJson("/api/entries/{$id}")->assertOk();
+
+        $this->assertSame($id, $deleted->json('deleted_id'));
+        $this->assertEqualsWithDelta(0, $deleted->json('totals.expense'), 0.001);
+    }
+
+    public function test_asset_and_debt_deletes_return_the_refreshed_summary(): void
+    {
+        $user = $this->userWithData();
+
+        $assetId = $user->financeAccounts()->sole()->id;
+        $deleted = $this->deleteJson("/api/assets/{$assetId}")->assertOk();
+        $this->assertSame($assetId, $deleted->json('deleted_id'));
+        $this->assertEqualsWithDelta(0, $deleted->json('summary.assets'), 0.001);
+
+        $debtId = $user->debts()->sole()->id;
+        $deleted = $this->deleteJson("/api/debts/{$debtId}")->assertOk();
+        $this->assertSame($debtId, $deleted->json('deleted_id'));
+        $this->assertEqualsWithDelta(0, $deleted->json('summary.total'), 0.001);
+        $this->assertSame(0, $deleted->json('summary.count'));
+    }
+
+    public function test_every_delete_reports_the_id_it_removed(): void
+    {
+        $user = $this->userWithData();
+
+        $cases = [
+            '/api/budgets/'.$user->budgets()->sole()->id,
+            '/api/goals/'.$user->goals()->sole()->id,
+            '/api/bills/'.$user->bills()->sole()->id,
+        ];
+
+        foreach ($cases as $url) {
+            $expected = (int) substr($url, (int) strrpos($url, '/') + 1);
+            $this->deleteJson($url)->assertOk()->assertJsonPath('deleted_id', $expected);
+        }
+    }
+
+    public function test_family_mutations_return_the_whole_screen(): void
+    {
+        $this->user();
+
+        $created = $this->postJson('/api/family', ['name' => 'Sharma Family'])->assertCreated();
+        $this->assertNotNull($created->json('household.id'));
+        $this->assertSame([], $created->json('expenses'));
+
+        $added = $this->postJson('/api/family/expenses', [
+            'category' => 'Groceries', 'amount' => 1200, 'occurred_on' => now()->toDateString(),
+        ])->assertCreated();
+
+        // The snapshot already reflects the new expense — no refetch needed.
+        $this->assertCount(1, $added->json('expenses'));
+        $this->assertEqualsWithDelta(1200, $added->json('summary.expense'), 0.001);
+
+        $removed = $this->deleteJson('/api/family/expenses/'.$added->json('id'))->assertOk();
+        $this->assertSame([], $removed->json('expenses'));
+        $this->assertEqualsWithDelta(0, $removed->json('summary.expense'), 0.001);
+    }
+
     // --- Test-data cleanup --------------------------------------------------
 
     public function test_purge_command_removes_matching_records_only_with_force(): void

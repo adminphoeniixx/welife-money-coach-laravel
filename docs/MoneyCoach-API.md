@@ -27,7 +27,10 @@ Mobile REST API for the MoneyCoach iOS app. Every screen in
 | Vault locked | `423` | `{ "message": "Vault is locked.", "vault": { "locked": true, "reason": "locked|no_pin" } }` |
 | Rate limited | `429` | `{ "message": "Too Many Attempts." }` |
 
-Mutations return a human `message` (already emoji-flavoured where the UI celebrates, e.g. `🎉 Paid off!`).
+Mutations return a human `message` (already emoji-flavoured where the UI celebrates, e.g. `🎉 Paid off!`)
+plus fresh data: creates/updates carry the resource, deletes carry `deleted_id` and
+the screen's refreshed aggregate (`totals`, `summary`, `subscription_monthly`).
+Family mutations return the entire family screen.
 
 ---
 

@@ -24,22 +24,10 @@ class DebtController extends Controller
     {
         $debts = $request->user()->debts()->with('documents')->where('status', 'active')->get();
 
-        $totalCents = (int) $debts->sum('balance_cents');
-        $emiCents = (int) $debts->sum('emi_cents');
-        $weightedApr = $totalCents > 0
-            ? round($debts->sum(fn (Debt $d) => $d->balance_cents * $d->interest_rate) / $totalCents, 1)
-            : 0.0;
-
         return response()->json([
             'loan_categories' => Options::loanCategories(),
             'kinds' => Options::debtKinds(),
-            'summary' => [
-                'total' => Money::toRupees($totalCents),
-                'monthly' => Money::toRupees($emiCents),
-                'avg_apr' => $weightedApr,
-                'count' => $debts->count(),
-                'progress' => $this->overallProgress($debts),
-            ],
+            'summary' => $this->summarise($debts),
             'loans' => $debts->where('kind', 'loan')->map($this->present(...))->values(),
             'cards' => $debts->where('kind', 'credit_card')->map($this->present(...))->values(),
             'payoff_order' => $debts->sortByDesc('interest_rate')->map($this->present(...))->values(),
@@ -55,6 +43,7 @@ class DebtController extends Controller
         return response()->json([
             'message' => 'Debt added.',
             'debt' => $this->present($debt->fresh(['documents'])),
+            'summary' => $this->summary($request),
         ], 201);
     }
 
@@ -69,6 +58,7 @@ class DebtController extends Controller
         return response()->json([
             'message' => 'Debt updated.',
             'debt' => $this->present($debt->fresh(['documents'])),
+            'summary' => $this->summary($request),
         ]);
     }
 
@@ -100,9 +90,14 @@ class DebtController extends Controller
     {
         abort_unless($debt->user_id === $request->user()->id, 403);
 
+        $deletedId = $debt->id;
         $debt->delete();
 
-        return response()->json(['message' => 'Debt removed.']);
+        return response()->json([
+            'message' => 'Debt removed.',
+            'deleted_id' => $deletedId,
+            'summary' => $this->summary($request),
+        ]);
     }
 
     /**
@@ -147,6 +142,7 @@ class DebtController extends Controller
             'message' => $closed ? '🎉 Paid off! '.$debt->name.' is now closed.' : 'Payment recorded.',
             'closed' => $closed,
             'debt' => $this->present($debt->fresh(['documents'])),
+            'summary' => $this->summary($request),
         ]);
     }
 
@@ -167,6 +163,37 @@ class DebtController extends Controller
         foreach ($request->file('documents', []) as $file) {
             DebtDocument::storeFor($debt, $file);
         }
+    }
+
+    /**
+     * The debts header, recomputed from the user's active debts — returned by
+     * the list and by every mutation so the app never needs a refetch.
+     *
+     * @return array<string, float|int>
+     */
+    private function summary(Request $request): array
+    {
+        return $this->summarise($request->user()->debts()->where('status', 'active')->get());
+    }
+
+    /**
+     * @param  Collection<int, Debt>  $debts
+     * @return array<string, float|int>
+     */
+    private function summarise(Collection $debts): array
+    {
+        $totalCents = (int) $debts->sum('balance_cents');
+        $emiCents = (int) $debts->sum('emi_cents');
+
+        return [
+            'total' => Money::toRupees($totalCents),
+            'monthly' => Money::toRupees($emiCents),
+            'avg_apr' => $totalCents > 0
+                ? round($debts->sum(fn (Debt $d) => $d->balance_cents * $d->interest_rate) / $totalCents, 1)
+                : 0.0,
+            'count' => $debts->count(),
+            'progress' => $this->overallProgress($debts),
+        ];
     }
 
     /**

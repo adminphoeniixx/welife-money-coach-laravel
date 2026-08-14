@@ -61,9 +61,16 @@ class ReminderController extends Controller
     {
         abort_unless($bill->user_id === $request->user()->id, 403);
 
+        $deletedId = $bill->id;
         $bill->delete();
 
-        return response()->json(['message' => 'Reminder deleted.']);
+        return response()->json([
+            'message' => 'Reminder deleted.',
+            'deleted_id' => $deletedId,
+            'subscription_monthly' => Money::toRupees(
+                (int) $request->user()->bills()->where('kind', 'subscription')->sum('amount_cents')
+            ),
+        ]);
     }
 
     /**

@@ -118,8 +118,9 @@ class ChallengeController extends Controller
     {
         abort_unless($challenge->user_id === $request->user()->id, 403);
 
+        $deletedId = $challenge->id;
         $challenge->delete();
 
-        return response()->json(['message' => 'Challenge left.']);
+        return response()->json(['message' => 'Challenge left.', 'deleted_id' => $deletedId]);
     }
 }
