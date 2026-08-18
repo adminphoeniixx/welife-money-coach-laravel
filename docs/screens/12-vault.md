@@ -90,3 +90,24 @@ GET /vault/gate
 
 Files encrypted-at-rest hain — view/download pe server decrypt karke bhejta hai.
 Images PNG hain, baaki PDF.
+
+## 📎 Document ke file fields
+
+`GET /vault` ke har `documents[]` row me file ke ye fields aate hain:
+
+| Field | Kya hai |
+|---|---|
+| `url` / `view_url` | **Signed, token-free link** — seedha `Image.network(...)` me daalo |
+| `download_url` | Wahi file, save-to-disk disposition ke saath |
+| `mime_type` · `size` · `size_label` | `image/png` · bytes · `"73 KB"` |
+| `is_image` | `true` → preview dikhao, `false` → PDF icon |
+| `authenticated_view_url` | Purana Bearer-token wala route (`/vault/documents/{id}/view`) |
+
+`url` pe **koi header nahi chahiye**, par ye **6 ghante me expire** hota hai — cache ya
+store mat karo, har `GET /vault` fresh links deta hai.
+
+> Categories bhi backend se hi aati hain (`categories[]`, har ek pe `key` · `label` ·
+> `count`) — app me fallback list mat rakho.
+
+> Poora file URL contract →
+> [98-reported-issues.md](98-reported-issues.md#-part-3--file-urls-ka-naya-contract)

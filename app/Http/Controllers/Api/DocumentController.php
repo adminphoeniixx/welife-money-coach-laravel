@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\StreamsPrivateFiles;
 use App\Http\Controllers\Controller;
 use App\Models\Document;
-use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -17,6 +17,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
+    use StreamsPrivateFiles;
+
     /** Private disk holding the encrypted document blobs. */
     private const DISK = 'local';
 
@@ -67,6 +69,15 @@ class DocumentController extends Controller
         $this->authorizeOwner($request, $document);
 
         return $this->stream($document, inline: false);
+    }
+
+    /**
+     * The token-free route behind `url` / `view_url`. Links are only minted
+     * onto responses that already cleared the vault PIN gate, and they expire.
+     */
+    public function signedView(Request $request, Document $document): Response
+    {
+        return $this->stream($document, inline: ! $request->boolean('download'));
     }
 
     /**
@@ -129,17 +140,7 @@ class DocumentController extends Controller
      */
     private function present(Document $doc): array
     {
-        return [
-            'id' => $doc->id,
-            'title' => $doc->title,
-            'category' => $doc->category,
-            'category_label' => $doc->categoryLabel(),
-            'side' => $doc->side,
-            'is_image' => $doc->isImage(),
-            'mime_type' => $doc->mime_type,
-            'notes' => $doc->notes,
-            'uploaded_at' => $doc->created_at?->format('d M Y'),
-        ];
+        return $doc->toApi();
     }
 
     /**
@@ -177,21 +178,13 @@ class DocumentController extends Controller
 
     private function stream(Document $document, bool $inline): StreamedResponse
     {
-        try {
-            $contents = Crypt::decryptString(Storage::disk(self::DISK)->get($document->path));
-        } catch (DecryptException) {
-            abort(500, 'This document could not be decrypted.');
-        }
-
-        $disposition = $inline ? 'inline' : 'attachment';
-        $filename = str_replace('"', '', $document->original_name);
-
-        return response()->streamDownload(function () use ($contents) {
-            echo $contents;
-        }, $filename, [
-            'Content-Type' => $document->mime_type,
-            'Content-Disposition' => $disposition.'; filename="'.$filename.'"',
-            'Cache-Control' => 'no-store, private',
-        ]);
+        return $this->streamPrivateFile(
+            self::DISK,
+            $document->path,
+            $document->mime_type,
+            $document->original_name,
+            $inline,
+            'This document could not be decrypted.',
+        );
     }
 }

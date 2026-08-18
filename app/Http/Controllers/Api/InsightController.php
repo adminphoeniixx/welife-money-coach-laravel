@@ -36,6 +36,7 @@ class InsightController extends Controller
             'notifications' => $items,
             'total' => count($items),
             'unread' => count(array_filter($items, fn (array $n) => ! $n['read'])),
+            'unread_count' => count(array_filter($items, fn (array $n) => ! $n['read'])),
         ]);
     }
 

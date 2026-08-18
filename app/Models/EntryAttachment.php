@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+use function App\Support\signed_file_url;
+
 /**
  * Proof of payment (receipt photo / PDF) attached to an income or expense
  * entry, encrypted at rest on the private disk — same scheme as
@@ -67,13 +69,21 @@ class EntryAttachment extends Model
     }
 
     /**
-     * The shape the app reads for a proof attachment. `url` and `view_url` are
-     * the same inline endpoint — both keys exist so either client naming works.
+     * The shape the app reads for a proof attachment.
+     *
+     * `url` / `view_url` / `download_url` are signed links that need no
+     * Authorization header, so an image widget or a browser can fetch them
+     * directly; they expire (see {@see StreamsPrivateFiles::signedLinkLifetime()})
+     * and are re-minted every time the entry is read. The token-authenticated
+     * `/api/entry-attachments/{id}/view` route stays available for clients
+     * that would rather send a Bearer token.
      *
      * @return array<string, mixed>
      */
     public function toApi(): array
     {
+        $view = signed_file_url('api.files.entry-attachment', ['attachment' => $this->id]);
+
         return [
             'id' => $this->id,
             'entry_id' => $this->entry_id,
@@ -81,10 +91,15 @@ class EntryAttachment extends Model
             'file_name' => $this->original_name,
             'mime_type' => $this->mime_type,
             'size' => $this->size_bytes,
+            'size_bytes' => $this->size_bytes,
             'is_image' => $this->isImage(),
-            'url' => url('/api/entry-attachments/'.$this->id.'/view'),
-            'view_url' => url('/api/entry-attachments/'.$this->id.'/view'),
-            'download_url' => url('/api/entry-attachments/'.$this->id.'/download'),
+            'url' => $view,
+            'view_url' => $view,
+            'download_url' => signed_file_url('api.files.entry-attachment', [
+                'attachment' => $this->id,
+                'download' => 1,
+            ]),
+            'authenticated_view_url' => url('/api/entry-attachments/'.$this->id.'/view'),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

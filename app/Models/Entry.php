@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Concerns\StampsUserCurrency;
+use App\Providers\AppServiceProvider;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,8 +53,12 @@ class Entry extends Model
     /**
      * The next occurrence after the given date while the schedule is still
      * running, or null when the entry does not repeat / has expired.
+     *
+     * Typed on `CarbonInterface` because the app runs on immutable dates
+     * (see {@see AppServiceProvider}), so `occurred_on` casts
+     * to a `CarbonImmutable` — a concrete `Carbon` return type rejects it.
      */
-    public function nextOccurrenceAfter(Carbon $from): ?Carbon
+    public function nextOccurrenceAfter(CarbonInterface $from): ?CarbonInterface
     {
         if (! $this->repeats()) {
             return null;

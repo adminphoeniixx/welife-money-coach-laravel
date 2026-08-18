@@ -31,6 +31,7 @@ validation) `../MoneyCoach-API.md` me hain.
 | 11 | [challenges.md](11-challenges.md) | challenges | `GET /challenges` |
 | 12 | [vault.md](12-vault.md) | vaultLock · vault | `GET /vault/gate` |
 | 13 | [profile-settings.md](13-profile-settings.md) | profile · editProfile · setRegion · setNotif · dataPrivacy · legal | `GET /profile` |
+| ✅ | [reported-issues.md](98-reported-issues.md) | — | **Reported issues ka status** + file/attachment URL contract |
 | ⚠️ | [missing-apis.md](99-missing-apis.md) | coach (AI chat) · subscription · setSecurity | **API abhi nahi hai** |
 
 ## Common baatein

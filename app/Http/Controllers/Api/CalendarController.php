@@ -8,6 +8,7 @@ use App\Models\Debt;
 use App\Models\Entry;
 use App\Models\User;
 use App\Support\Money;
+use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -84,7 +85,7 @@ class CalendarController extends Controller
      *
      * @return list<array<string, mixed>>
      */
-    private function billItems(User $user, Carbon $from, Carbon $to): array
+    private function billItems(User $user, CarbonInterface $from, CarbonInterface $to): array
     {
         return $user->bills()
             ->whereBetween('due_date', [$from, $to])->get()
@@ -107,7 +108,7 @@ class CalendarController extends Controller
      *
      * @return list<array<string, mixed>>
      */
-    private function cardDueItems(User $user, Carbon $month): array
+    private function cardDueItems(User $user, CarbonInterface $month): array
     {
         return $user->debts()->where('status', 'active')->where('kind', 'credit_card')->get()
             ->filter(fn (Debt $d) => $d->due_day !== null)
@@ -134,7 +135,7 @@ class CalendarController extends Controller
      *
      * @return list<array<string, mixed>>
      */
-    private function recurringEntryItems(User $user, Carbon $from, Carbon $to): array
+    private function recurringEntryItems(User $user, CarbonInterface $from, CarbonInterface $to): array
     {
         $items = [];
 
@@ -179,7 +180,7 @@ class CalendarController extends Controller
      *
      * @return list<array<string, mixed>>
      */
-    private function loggedEntryItems(User $user, Carbon $from, Carbon $to): array
+    private function loggedEntryItems(User $user, CarbonInterface $from, CarbonInterface $to): array
     {
         return $user->entries()
             ->whereBetween('occurred_on', [$from, $to])->get()
@@ -206,7 +207,7 @@ class CalendarController extends Controller
      * @return array<string, mixed>
      */
     private function item(
-        Carbon $date,
+        CarbonInterface $date,
         string $source,
         string $kind,
         int $id,

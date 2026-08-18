@@ -262,11 +262,7 @@ class DebtController extends Controller
             'amount_paid' => Money::toRupees($repayment['amount_paid_cents']),
             'remaining_amount' => Money::toRupees($repayment['remaining_cents']),
             'repayment_progress' => $repayment['progress'],
-            'documents' => $d->documents->map(fn (DebtDocument $doc) => [
-                'id' => $doc->id,
-                'name' => $doc->original_name,
-                'is_image' => $doc->isImage(),
-            ])->values(),
+            'documents' => $d->documents->map(fn (DebtDocument $doc) => $doc->toApi())->values(),
         ];
     }
 

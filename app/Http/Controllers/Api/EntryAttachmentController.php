@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\StreamsPrivateFiles;
 use App\Http\Controllers\Controller;
 use App\Models\Entry;
 use App\Models\EntryAttachment;
-use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -19,6 +18,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class EntryAttachmentController extends Controller
 {
+    use StreamsPrivateFiles;
+
     /**
      * Attach one or more proof files to an existing transaction.
      */
@@ -60,6 +61,17 @@ class EntryAttachmentController extends Controller
         $this->authorizeOwner($request, $attachment);
 
         return $this->stream($attachment, inline: false);
+    }
+
+    /**
+     * The token-free route behind `url` / `view_url`: a signed link the app can
+     * hand straight to an image widget or a browser. The signature is what
+     * authorises it, so there is no owner check to run here — the link was
+     * minted for this attachment and expires on its own.
+     */
+    public function signedView(Request $request, EntryAttachment $attachment): Response
+    {
+        return $this->stream($attachment, inline: ! $request->boolean('download'));
     }
 
     /**
@@ -107,21 +119,13 @@ class EntryAttachmentController extends Controller
 
     private function stream(EntryAttachment $attachment, bool $inline): StreamedResponse
     {
-        try {
-            $contents = Crypt::decryptString(Storage::disk(EntryAttachment::DISK)->get($attachment->path));
-        } catch (DecryptException) {
-            abort(500, 'This attachment could not be decrypted.');
-        }
-
-        $disposition = $inline ? 'inline' : 'attachment';
-        $filename = str_replace('"', '', $attachment->original_name);
-
-        return response()->streamDownload(function () use ($contents) {
-            echo $contents;
-        }, $filename, [
-            'Content-Type' => $attachment->mime_type,
-            'Content-Disposition' => $disposition.'; filename="'.$filename.'"',
-            'Cache-Control' => 'no-store, private',
-        ]);
+        return $this->streamPrivateFile(
+            EntryAttachment::DISK,
+            $attachment->path,
+            $attachment->mime_type,
+            $attachment->original_name,
+            $inline,
+            'This attachment could not be decrypted.',
+        );
     }
 }

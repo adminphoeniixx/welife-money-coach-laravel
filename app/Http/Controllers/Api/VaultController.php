@@ -111,22 +111,7 @@ class VaultController extends Controller
                     'count' => (int) ($counts[$key] ?? 0),
                 ])->values(),
             'total' => (int) $counts->sum(),
-            'documents' => $documents->map(fn (Document $doc) => [
-                'id' => $doc->id,
-                'title' => $doc->title,
-                'category' => $doc->category,
-                'category_label' => $doc->categoryLabel(),
-                'side' => $doc->side,
-                'is_image' => $doc->isImage(),
-                'file_name' => $doc->original_name,
-                'mime_type' => $doc->mime_type,
-                // Raw bytes for the app; `size_label` is the display string.
-                'size' => $doc->size_bytes,
-                'size_label' => $this->humanSize($doc->size_bytes),
-                'notes' => $doc->notes,
-                'created_at' => $doc->created_at?->toIso8601String(),
-                'uploaded_at' => $doc->created_at?->format('d M Y'),
-            ])->values(),
+            'documents' => $documents->map(fn (Document $doc) => $doc->toApi())->values(),
         ]);
     }
 
@@ -147,17 +132,5 @@ class VaultController extends Controller
         if ($key !== null) {
             Cache::put($key, time(), EnsureVaultUnlockedApi::TIMEOUT);
         }
-    }
-
-    private function humanSize(int $bytes): string
-    {
-        if ($bytes >= 1048576) {
-            return round($bytes / 1048576, 1).' MB';
-        }
-        if ($bytes >= 1024) {
-            return round($bytes / 1024).' KB';
-        }
-
-        return $bytes.' B';
     }
 }

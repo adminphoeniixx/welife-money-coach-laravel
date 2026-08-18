@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Bill;
 use App\Support\Money;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -84,7 +85,7 @@ class ReminderController extends Controller
         return back();
     }
 
-    private function present(Carbon $today): callable
+    private function present(CarbonInterface $today): callable
     {
         return fn (Bill $b) => [
             'id' => $b->id,

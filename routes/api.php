@@ -54,6 +54,22 @@ Route::get('meta/config', [MetaController::class, 'config']);
 // Public legal content (legalPrivacy / legalTerms screens).
 Route::get('legal/{document}', [LegalController::class, 'show'])->whereIn('document', ['privacy', 'terms']);
 
+/*
+ * Signed file links. These carry no Sanctum token — the signature in the URL
+ * is the authorisation, and it expires — so the app can hand `url` /
+ * `view_url` straight to an image widget or the system browser. Every list
+ * and detail response mints fresh links. Add `?download=1` for a save-to-disk
+ * disposition instead of an inline preview.
+ */
+Route::middleware('signed')->prefix('files')->group(function () {
+    Route::get('entry-attachments/{attachment}', [EntryAttachmentController::class, 'signedView'])
+        ->name('api.files.entry-attachment');
+    Route::get('debt-documents/{document}', [DebtDocumentController::class, 'signedView'])
+        ->name('api.files.debt-document');
+    Route::get('vault-documents/{document}', [DocumentController::class, 'signedView'])
+        ->name('api.files.vault-document');
+});
+
 // --- Authenticated ---
 Route::middleware('auth:sanctum')->group(function () {
     // Session / identity

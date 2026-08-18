@@ -8,6 +8,7 @@ use App\Models\NotificationRead;
 use App\Services\InsightService;
 use App\Support\Money;
 use App\Support\Options;
+use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -42,6 +43,7 @@ class ReminderController extends Controller
             'subscriptions' => $subscriptions->map($this->present($today, $readKeys))->values(),
             'subscription_monthly' => Money::toRupees((int) $subscriptions->sum('amount_cents')),
             'unread' => $this->insights->remindersUnreadCount($user),
+            'unread_count' => $this->insights->remindersUnreadCount($user),
         ]);
     }
 
@@ -58,6 +60,7 @@ class ReminderController extends Controller
             'message' => 'Reminder marked as read.',
             'bill' => ($this->present(Carbon::now()->startOfDay(), $request->user()->notificationReads()->pluck('key')->flip()))($bill),
             'unread' => $this->insights->remindersUnreadCount($request->user()),
+            'unread_count' => $this->insights->remindersUnreadCount($request->user()),
         ]);
     }
 
@@ -74,6 +77,7 @@ class ReminderController extends Controller
         return response()->json([
             'message' => 'All reminders marked as read.',
             'unread' => 0,
+            'unread_count' => 0,
         ]);
     }
 
@@ -109,6 +113,7 @@ class ReminderController extends Controller
             'message' => 'Snoozed until '.$due->format('d M Y').'.',
             'bill' => ($this->present(Carbon::now()->startOfDay(), $request->user()->notificationReads()->pluck('key')->flip()))($bill->fresh()),
             'unread' => $this->insights->remindersUnreadCount($request->user()),
+            'unread_count' => $this->insights->remindersUnreadCount($request->user()),
         ]);
     }
 
@@ -202,7 +207,7 @@ class ReminderController extends Controller
     /**
      * @param  Collection<string, int>|null  $readKeys
      */
-    private function present(Carbon $today, mixed $readKeys = null): callable
+    private function present(CarbonInterface $today, mixed $readKeys = null): callable
     {
         return function (Bill $b) use ($today, $readKeys) {
             $days = (int) round($today->diffInDays($b->due_date, false));

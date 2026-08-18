@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\StampsUserCurrency;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -75,7 +76,7 @@ class Debt extends Model
      * The app renders dates, not day numbers, so `statement_date` / `due_date`
      * are derived here rather than in each caller.
      */
-    public function nextDateForDay(?int $day, ?Carbon $from = null): ?Carbon
+    public function nextDateForDay(?int $day, ?CarbonInterface $from = null): ?CarbonInterface
     {
         if ($day === null || $day < 1 || $day > 31) {
             return null;
