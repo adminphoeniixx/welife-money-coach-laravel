@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Challenge;
 use App\Models\Document;
 use DateTimeZone;
 use Illuminate\Support\Carbon;
@@ -27,6 +28,7 @@ class Options
                 'income_categories' => self::incomeCategories(),
                 'expense_categories' => self::expenseCategories(),
                 'payment_methods' => self::paymentMethods(),
+                'repeat_options' => self::entryRepeatOptions(),
             ],
             'assets' => [
                 'types' => self::assetTypes(),
@@ -34,6 +36,10 @@ class Options
             'debts' => [
                 'loan_categories' => self::loanCategories(),
                 'kinds' => self::debtKinds(),
+                'card_networks' => self::cardNetworks(),
+            ],
+            'challenges' => [
+                'presets' => self::challengePresets(),
             ],
             'planning' => [
                 'goal_types' => self::goalTypes(),
@@ -63,7 +69,70 @@ class Options
                 'timezones' => self::timezones(),
                 'number_formats' => self::numberFormats(),
             ],
+            'shortcuts' => self::shortcuts(),
+            'features' => self::features(),
+            'auth' => [
+                'social_providers' => self::socialProviders(),
+            ],
         ];
+    }
+
+    /**
+     * Which optional surfaces the backend can actually serve. The app hides
+     * anything false rather than showing a dead button.
+     *
+     * @return array<string, bool>
+     */
+    public static function features(): array
+    {
+        return array_map(
+            fn ($enabled) => (bool) $enabled,
+            (array) config('moneycoach.features', []),
+        );
+    }
+
+    /**
+     * Social sign-in providers with a working backend. Empty means the app
+     * renders no social buttons.
+     *
+     * @return list<string>
+     */
+    public static function socialProviders(): array
+    {
+        return array_values(array_map(strval(...), (array) config('moneycoach.auth.social_providers', [])));
+    }
+
+    /**
+     * Home-screen shortcut tiles — route metadata only. Their contents are
+     * computed per user, never hardcoded.
+     *
+     * @return list<array<string, string>>
+     */
+    public static function shortcuts(): array
+    {
+        return array_values(array_map(
+            fn (array $s) => array_map(strval(...), $s),
+            (array) config('moneycoach.shortcuts', []),
+        ));
+    }
+
+    /**
+     * Preset challenges in a currency-agnostic shape, for the picker.
+     *
+     * @return list<array{key:string, title:string, description:string, target:float}>
+     */
+    public static function challengePresets(): array
+    {
+        return array_values(array_map(
+            fn (string $key, array $preset) => [
+                'key' => $key,
+                'title' => $preset['title'],
+                'description' => $preset['description'],
+                'target' => Money::toRupees($preset['target']),
+            ],
+            array_keys(Challenge::PRESETS),
+            array_values(Challenge::PRESETS),
+        ));
     }
 
     // --- Transactions -------------------------------------------------------
@@ -84,6 +153,12 @@ class Options
     public static function paymentMethods(): array
     {
         return array_values((array) config('moneycoach.transactions.payment_methods', []));
+    }
+
+    /** @return list<string> */
+    public static function entryRepeatOptions(): array
+    {
+        return array_values((array) config('moneycoach.transactions.repeat_options', []));
     }
 
     // --- Assets -------------------------------------------------------------
@@ -120,6 +195,12 @@ class Options
     public static function debtKinds(): array
     {
         return array_values((array) config('moneycoach.debts.kinds', []));
+    }
+
+    /** @return list<string> */
+    public static function cardNetworks(): array
+    {
+        return array_values((array) config('moneycoach.debts.card_networks', []));
     }
 
     // --- Planning -----------------------------------------------------------

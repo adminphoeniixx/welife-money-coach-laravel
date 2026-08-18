@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Budget;
 use App\Models\Entry;
+use App\Models\User;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
@@ -45,8 +48,41 @@ class ReportController extends Controller
                 'count' => $entries->count(),
             ],
             'by_category' => $byCategory,
+            'budgets' => $this->budgetRows($user, $entries),
             'user_name' => $user->name,
+            'currency' => $user->currency,
+            'export_url' => url('/api/reports/export?month='.$month->format('Y-m')),
         ]);
+    }
+
+    /**
+     * Each budget with what was actually spent against it in the reported
+     * month — computed from that month's expense entries, never stored.
+     *
+     * @param  Collection<int, Entry>  $entries
+     * @return list<array<string, mixed>>
+     */
+    private function budgetRows(User $user, Collection $entries): array
+    {
+        $spentByCategory = $entries->where('type', 'expense')
+            ->groupBy('category')
+            ->map(fn ($rows) => (int) $rows->sum('amount_cents'));
+
+        return $user->budgets()->whereNull('household_id')->orderBy('category')->get()
+            ->map(function (Budget $b) use ($spentByCategory) {
+                $spent = (int) ($spentByCategory[$b->category] ?? 0);
+
+                return [
+                    'id' => $b->id,
+                    'category' => $b->category,
+                    'limit' => Money::toRupees($b->limit_cents),
+                    'spent' => Money::toRupees($spent),
+                    'remaining' => Money::toRupees(max(0, $b->limit_cents - $spent)),
+                    'percent' => $b->limit_cents > 0 ? (int) round($spent / $b->limit_cents * 100) : 0,
+                    'progress' => $b->limit_cents > 0 ? round(min(1, $spent / $b->limit_cents), 2) : 0.0,
+                    'exceeded' => $spent > $b->limit_cents,
+                ];
+            })->sortByDesc('percent')->values()->all();
     }
 
     /**

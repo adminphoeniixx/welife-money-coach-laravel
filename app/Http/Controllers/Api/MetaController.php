@@ -19,4 +19,22 @@ class MetaController extends Controller
     {
         return response()->json(Options::all());
     }
+
+    /**
+     * Public app config, readable before sign-in.
+     *
+     * The login screen uses `features.social_sign_in` / `auth.social_providers`
+     * to decide whether to render social buttons at all — while there is no
+     * provider the app must show none rather than a button that cannot work.
+     */
+    public function config(): JsonResponse
+    {
+        return response()->json([
+            'features' => Options::features(),
+            'auth' => [
+                'social_providers' => Options::socialProviders(),
+            ],
+            'shortcuts' => Options::shortcuts(),
+        ]);
+    }
 }

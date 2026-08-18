@@ -27,6 +27,7 @@ class DebtController extends Controller
         return response()->json([
             'loan_categories' => Options::loanCategories(),
             'kinds' => Options::debtKinds(),
+            'card_networks' => Options::cardNetworks(),
             'summary' => $this->summarise($debts),
             'loans' => $debts->where('kind', 'loan')->map($this->present(...))->values(),
             'cards' => $debts->where('kind', 'credit_card')->map($this->present(...))->values(),
@@ -219,6 +220,12 @@ class DebtController extends Controller
     private function present(Debt $d): array
     {
         $repayment = $d->repayment();
+        $isCard = $d->isCard();
+
+        // Day-of-month is what's stored; the app renders dates, so resolve the
+        // next real calendar date for each.
+        $dueDate = $d->nextDateForDay($d->due_day);
+        $statementDate = $isCard ? $d->nextDateForDay($d->statement_day) : null;
 
         return [
             'id' => $d->id,
@@ -229,12 +236,23 @@ class DebtController extends Controller
             'balance' => Money::toRupees($d->balance_cents),
             'principal' => Money::toRupees($d->principal_cents),
             'interest_rate' => (float) $d->interest_rate,
+            // `apr` is the same number under the name the card screens use.
+            'apr' => (float) $d->interest_rate,
             'emi' => Money::toRupees($d->emi_cents),
             'credit_limit' => $d->credit_limit_cents ? Money::toRupees($d->credit_limit_cents) : null,
             'min_due' => $d->min_due_cents ? Money::toRupees($d->min_due_cents) : null,
+            'minimum_due' => $d->min_due_cents ? Money::toRupees($d->min_due_cents) : null,
+            'current_due' => $isCard ? Money::toRupees($d->currentDueCents()) : null,
+            'available_credit' => $isCard && $d->credit_limit_cents
+                ? Money::toRupees(max(0, $d->credit_limit_cents - $d->balance_cents))
+                : null,
+            'card_network' => $d->card_network,
+            'last4' => $d->card_last4,
             'due_day' => $d->due_day,
+            'due_date' => $dueDate?->format('Y-m-d'),
             'statement_day' => $d->statement_day,
-            'utilisation' => $d->isCard() ? $d->utilisation() : null,
+            'statement_date' => $statementDate?->format('Y-m-d'),
+            'utilisation' => $isCard ? $d->utilisation() : null,
             'paid_percent' => $d->principal_cents > 0
                 ? max(0, min(100, round(($d->principal_cents - $d->balance_cents) / $d->principal_cents * 100)))
                 : null,
@@ -268,11 +286,23 @@ class DebtController extends Controller
             'emi' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
             'credit_limit' => ['nullable', 'numeric', 'min:0', 'max:1000000000'],
             'min_due' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
+            'minimum_due' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
+            'current_due' => ['nullable', 'numeric', 'min:0', 'max:1000000000'],
+            'card_network' => ['nullable', Rule::in(Options::cardNetworks())],
+            'last4' => ['nullable', 'digits:4'],
             'due_day' => ['nullable', 'integer', 'min:1', 'max:31'],
+            'due_date' => ['nullable', 'date'],
             'statement_day' => ['nullable', 'integer', 'min:1', 'max:31'],
+            'statement_date' => ['nullable', 'date'],
             'total_emis' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'emis_paid' => ['nullable', 'integer', 'min:0', 'max:1000'],
         ]);
+
+        // The app may send either the day-of-month or a full date; a date wins
+        // and is reduced to the day the schedule actually repeats on.
+        $v['due_day'] ??= isset($v['due_date']) ? Carbon::parse($v['due_date'])->day : null;
+        $v['statement_day'] ??= isset($v['statement_date']) ? Carbon::parse($v['statement_date'])->day : null;
+        $v['min_due'] ??= $v['minimum_due'] ?? null;
 
         $isCard = $v['kind'] === 'credit_card';
         $totalEmis = $isCard ? null : ($v['total_emis'] ?? null);
@@ -291,6 +321,9 @@ class DebtController extends Controller
             'emis_paid' => $emisPaid,
             'credit_limit_cents' => $isCard && isset($v['credit_limit']) ? Money::toCents($v['credit_limit']) : null,
             'min_due_cents' => $isCard && isset($v['min_due']) ? Money::toCents($v['min_due']) : null,
+            'current_due_cents' => $isCard && isset($v['current_due']) ? Money::toCents($v['current_due']) : null,
+            'card_network' => $isCard ? ($v['card_network'] ?? null) : null,
+            'card_last4' => $isCard ? ($v['last4'] ?? null) : null,
             'due_day' => $v['due_day'] ?? null,
             'statement_day' => $isCard ? ($v['statement_day'] ?? null) : null,
             'status' => 'active',

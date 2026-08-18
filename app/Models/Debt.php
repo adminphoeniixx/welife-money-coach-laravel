@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A loan or credit card the user owes money on.
@@ -27,6 +28,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $min_due_cents
  * @property int|null $due_day
  * @property int|null $statement_day
+ * @property string|null $card_network Visa|Mastercard|RuPay|Amex
+ * @property string|null $card_last4
+ * @property int|null $current_due_cents
  * @property string $currency
  * @property string $status
  */
@@ -34,7 +38,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'user_id', 'name', 'institution', 'kind', 'category', 'principal_cents',
     'balance_cents', 'interest_rate', 'emi_cents', 'total_emis', 'emis_paid',
     'credit_limit_cents', 'min_due_cents', 'due_day', 'statement_day', 'currency', 'status',
-    'opened_on', 'closed_at',
+    'card_network', 'card_last4', 'current_due_cents', 'opened_on', 'closed_at',
 ])]
 class Debt extends Model
 {
@@ -53,6 +57,7 @@ class Debt extends Model
             'min_due_cents' => 'integer',
             'due_day' => 'integer',
             'statement_day' => 'integer',
+            'current_due_cents' => 'integer',
             'opened_on' => 'date',
             'closed_at' => 'date',
         ];
@@ -61,6 +66,40 @@ class Debt extends Model
     public function isCard(): bool
     {
         return $this->kind === 'credit_card';
+    }
+
+    /**
+     * Turn a stored day-of-month into the next real calendar date, clamped to
+     * the length of the month so "31" still resolves in February.
+     *
+     * The app renders dates, not day numbers, so `statement_date` / `due_date`
+     * are derived here rather than in each caller.
+     */
+    public function nextDateForDay(?int $day, ?Carbon $from = null): ?Carbon
+    {
+        if ($day === null || $day < 1 || $day > 31) {
+            return null;
+        }
+
+        $from ??= Carbon::now();
+        $today = $from->copy()->startOfDay();
+        $candidate = $today->copy()->startOfMonth()->addDays(min($day, $today->daysInMonth) - 1);
+
+        if ($candidate->lt($today)) {
+            $next = $today->copy()->startOfMonth()->addMonthNoOverflow();
+            $candidate = $next->copy()->addDays(min($day, $next->daysInMonth) - 1);
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * What is actually payable on a card right now: the explicit statement due
+     * when one was recorded, otherwise the outstanding balance.
+     */
+    public function currentDueCents(): int
+    {
+        return $this->current_due_cents ?? $this->balance_cents;
     }
 
     /**

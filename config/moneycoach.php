@@ -24,6 +24,10 @@ return [
         'payment_methods' => [
             'Cash', 'UPI', 'Debit Card', 'Credit Card', 'Bank Transfer', 'Auto Debit',
         ],
+
+        // How often a transaction repeats. `one_time` is stored and behaves
+        // like `none`; both mean "does not repeat".
+        'repeat_options' => ['none', 'one_time', 'weekly', 'monthly', 'yearly'],
     ],
 
     'assets' => [
@@ -43,6 +47,7 @@ return [
     'debts' => [
         'loan_categories' => ['home', 'vehicle', 'gold', 'personal', 'education', 'business', 'custom'],
         'kinds' => ['loan', 'credit_card'],
+        'card_networks' => ['Visa', 'Mastercard', 'RuPay', 'Amex'],
     ],
 
     'planning' => [
@@ -96,6 +101,51 @@ return [
 
         // Timezones offered when a country has none of its own.
         'fallback_timezones' => ['UTC', 'Asia/Kolkata'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Feature availability
+    |--------------------------------------------------------------------------
+    | The app hides any surface whose flag is false instead of shipping a
+    | button that leads nowhere. Flip a flag on only once the backend behind
+    | it actually works.
+    */
+    'features' => [
+        'social_sign_in' => false,
+        'passkeys' => false,
+        'attachment_export' => false,
+        'coach_chat' => true,
+        'voice_coach' => true,
+        'subscriptions_billing' => false,
+    ],
+
+    // Social providers the backend can actually complete a sign-in with.
+    // While this is empty the app renders no social buttons at all.
+    'auth' => [
+        'social_providers' => [],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Home shortcuts
+    |--------------------------------------------------------------------------
+    | Route metadata only — the tiles' contents (counts, amounts) are computed
+    | per user in CoachService::snapshot(), never hardcoded here.
+    */
+    'shortcuts' => [
+        ['key' => 'add_expense', 'label' => 'Add expense', 'icon' => 'minus-circle', 'route' => '/transactions', 'endpoint' => '/api/entries'],
+        ['key' => 'add_income', 'label' => 'Add income', 'icon' => 'plus-circle', 'route' => '/transactions', 'endpoint' => '/api/entries'],
+        ['key' => 'reminders', 'label' => 'Reminders', 'icon' => 'bell', 'route' => '/reminders', 'endpoint' => '/api/reminders'],
+        ['key' => 'debts', 'label' => 'Debts & cards', 'icon' => 'credit-card', 'route' => '/debts', 'endpoint' => '/api/debts'],
+        ['key' => 'planning', 'label' => 'Budgets & goals', 'icon' => 'target', 'route' => '/planning', 'endpoint' => '/api/planning'],
+        ['key' => 'insights', 'label' => 'Insights', 'icon' => 'bar-chart', 'route' => '/insights', 'endpoint' => '/api/insights'],
+        ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'route' => '/calendar', 'endpoint' => '/api/calendar'],
+        ['key' => 'coach', 'label' => 'Ask AI Coach', 'icon' => 'sparkles', 'route' => '/coach', 'endpoint' => '/api/coach'],
+        ['key' => 'vault', 'label' => 'Document vault', 'icon' => 'lock', 'route' => '/vault', 'endpoint' => '/api/vault'],
+        ['key' => 'family', 'label' => 'Family finance', 'icon' => 'users', 'route' => '/family', 'endpoint' => '/api/family'],
+        ['key' => 'challenges', 'label' => 'Challenges', 'icon' => 'trophy', 'route' => '/challenges', 'endpoint' => '/api/challenges'],
+        ['key' => 'net_worth', 'label' => 'Net worth', 'icon' => 'trending-up', 'route' => '/net-worth', 'endpoint' => '/api/net-worth'],
     ],
 
 ];

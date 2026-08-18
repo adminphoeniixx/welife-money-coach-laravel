@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DebtController;
 use App\Http\Controllers\Api\DebtDocumentController;
 use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\EntryAttachmentController;
 use App\Http\Controllers\Api\FamilyController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\InsightController;
@@ -45,6 +46,11 @@ Route::prefix('auth')->group(function () {
     Route::post('reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
 });
 
+// Public app config — which optional features the backend can actually serve,
+// read by the welcome / login screens before there is a token.
+Route::get('config', [MetaController::class, 'config']);
+Route::get('meta/config', [MetaController::class, 'config']);
+
 // Public legal content (legalPrivacy / legalTerms screens).
 Route::get('legal/{document}', [LegalController::class, 'show'])->whereIn('document', ['privacy', 'terms']);
 
@@ -62,15 +68,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('onboarding', [OnboardingController::class, 'show']);
     Route::post('onboarding', [OnboardingController::class, 'store']);
 
-    // Home dashboard + debt payoff coach
+    // Home dashboard + coach. GET /coach serves both modes: `?q=` answers a
+    // free-text question, `?strategy=` returns the debt payoff plan.
     Route::get('dashboard', [DashboardController::class, 'index']);
     Route::get('coach', [CoachController::class, 'index']);
+    Route::post('coach', [CoachController::class, 'ask']);
 
-    // Transactions (income & expenses)
+    // Transactions (income & expenses) + proof attachments
     Route::get('transactions', [TransactionController::class, 'index']);
+    Route::get('transactions/{entry}', [TransactionController::class, 'show']);
     Route::post('entries', [TransactionController::class, 'store']);
+    Route::get('entries/{entry}', [TransactionController::class, 'show']);
     Route::put('entries/{entry}', [TransactionController::class, 'update']);
+    // POST alias for update — multipart bodies cannot be sent with PUT.
+    Route::post('entries/{entry}', [TransactionController::class, 'update']);
     Route::delete('entries/{entry}', [TransactionController::class, 'destroy']);
+    Route::post('entries/{entry}/attachments', [EntryAttachmentController::class, 'store']);
+    Route::delete('entries/{entry}/attachments/{attachment}', [EntryAttachmentController::class, 'destroyForEntry']);
+    Route::get('entry-attachments/{attachment}/view', [EntryAttachmentController::class, 'view']);
+    Route::get('entry-attachments/{attachment}/download', [EntryAttachmentController::class, 'download']);
+    Route::delete('entry-attachments/{attachment}', [EntryAttachmentController::class, 'destroy']);
 
     // Debts (loans + credit cards) + payments + attachments
     Route::get('debts', [DebtController::class, 'index']);
@@ -106,6 +123,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('bills/{bill}', [ReminderController::class, 'update']);
     Route::delete('bills/{bill}', [ReminderController::class, 'destroy']);
     Route::post('bills/{bill}/paid', [ReminderController::class, 'markPaid']);
+    Route::post('bills/{bill}/snooze', [ReminderController::class, 'snooze']);
+    Route::post('bills/{bill}/read', [ReminderController::class, 'markRead']);
+    Route::post('reminders/read-all', [ReminderController::class, 'markAllRead']);
 
     // Family Finance Mode
     Route::get('family', [FamilyController::class, 'index']);
@@ -128,6 +148,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('search', [SearchController::class, 'index']);
     Route::get('achievements', [InsightController::class, 'achievements']);
     Route::get('notifications', [InsightController::class, 'notifications']);
+    Route::post('notifications/read-all', [InsightController::class, 'markAllRead']);
+    // The id is the notification's stable key (e.g. `bill_due:12:2026-08-20`).
+    Route::post('notifications/{notification}/read', [InsightController::class, 'markRead']);
     Route::get('reports', [ReportController::class, 'index']);
     Route::get('reports/export', [ReportController::class, 'exportCsv']);
     Route::get('challenges', [ChallengeController::class, 'index']);
@@ -138,7 +161,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Secure Documents Vault — PIN-gated (vaultLock / vault)
     Route::prefix('vault')->group(function () {
         Route::get('gate', [VaultController::class, 'gate']);
+        // Set or change the PIN — changing requires `current_pin`.
         Route::post('pin', [VaultController::class, 'setPin']);
+        Route::put('pin', [VaultController::class, 'setPin']);
         Route::post('unlock', [VaultController::class, 'unlock'])->middleware('throttle:6,1');
         Route::post('lock', [VaultController::class, 'lock']);
 
@@ -166,4 +191,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('settings/notifications', [SettingsController::class, 'updateNotifications']);
     Route::get('settings/data-privacy', [SettingsController::class, 'dataPrivacy']);
     Route::get('settings/data-privacy/export', [SettingsController::class, 'exportData']);
+    // Same export under the name the settings screen uses.
+    Route::get('settings/data-export', [SettingsController::class, 'exportData']);
+    Route::put('settings/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:6,1');
 });

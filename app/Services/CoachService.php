@@ -7,6 +7,7 @@ use App\Models\Budget;
 use App\Models\Debt;
 use App\Models\Entry;
 use App\Models\User;
+use App\Support\Options;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -25,6 +26,8 @@ use Illuminate\Support\Collection;
  */
 class CoachService
 {
+    public function __construct(private readonly InsightService $insights) {}
+
     /**
      * Build the full dashboard snapshot for a user.
      *
@@ -67,6 +70,9 @@ class CoachService
 
         $payoff = $this->simulatePayoff($debts, $emiCents);
         $priority = $this->priorityPayment($debts, $bills, $user);
+
+        $remindersUnread = $this->insights->remindersUnreadCount($user);
+        $notificationsUnread = $this->insights->unreadCount($user);
 
         return [
             'currency' => $user->currency,
@@ -115,6 +121,20 @@ class CoachService
             'upcoming' => $this->upcomingBills($bills),
             'spending' => $this->spendingBreakdown($monthEntries),
             'trend' => $this->monthlyTrend($user),
+            // Route metadata only — what each tile shows is the live data above.
+            'shortcuts' => Options::shortcuts(),
+            'features' => Options::features(),
+            'recent_transactions' => $this->recentTransactions($monthEntries, $user),
+            'counts' => [
+                'reminders_unread' => $remindersUnread,
+                'notifications_unread' => $notificationsUnread,
+                'transactions_this_month' => $monthEntries->count(),
+                'active_debts' => $debts->count(),
+                'overdue_bills' => $overdueCount,
+            ],
+            // Same numbers, hoisted for a client that reads them flat.
+            'reminders_unread' => $remindersUnread,
+            'notifications_unread' => $notificationsUnread,
             'tips' => $this->tips($incomeCents, $expenseCents, $emiCents, $avgUtilisation, $cards, $overdueCount, $user),
             'debts' => $debts->sortByDesc('interest_rate')->map(fn ($d) => [
                 'id' => $d->id,
@@ -132,6 +152,438 @@ class CoachService
                 'due_day' => $d->due_day,
             ])->values(),
         ];
+    }
+
+    /**
+     * Answer a free-text question ("which loan should I close first?",
+     * "how much did I spend on food?") from the user's own finance data.
+     *
+     * Intent is matched on keywords and every figure in the reply is read
+     * live from the ledger — there is no canned answer path. When nothing
+     * matches, the reply is a real summary of where the user stands rather
+     * than a placeholder.
+     *
+     * @return array{question:string, answer:string, tone:string}
+     */
+    public function answer(User $user, string $question): array
+    {
+        $q = mb_strtolower(trim($question));
+
+        if ($q === '') {
+            return $this->reply($question, 'Ask me anything about your money — spending, savings, loans, cards, budgets, reminders or net worth.', 'general');
+        }
+
+        foreach ($this->intents() as $tone => $keywords) {
+            if (! $this->mentions($q, $keywords)) {
+                continue;
+            }
+
+            return $this->reply($question, match ($tone) {
+                'debt' => $this->answerDebt($user, $q),
+                'card' => $this->answerCard($user, $q),
+                'reminder' => $this->answerReminder($user, $q),
+                'budget' => $this->answerBudget($user, $q),
+                'goal' => $this->answerGoal($user, $q),
+                'networth' => $this->answerNetworth($user, $q),
+                'saving' => $this->answerSaving($user, $q),
+                'spend' => $this->answerSpend($user, $q),
+                default => $this->answerIncome($user, $q),
+            }, $tone);
+        }
+
+        return $this->reply($question, $this->answerOverview($user), 'general');
+    }
+
+    /**
+     * Question keywords per topic, most specific topic first — a question
+     * about a "credit card APR" should land on cards, not on spending.
+     *
+     * @return array<string, list<string>>
+     */
+    private function intents(): array
+    {
+        return [
+            'debt' => ['loan', 'debt', 'emi', 'payoff', 'pay off', 'close first', 'interest rate', 'apr', 'borrow', 'repay'],
+            'card' => ['credit card', 'card', 'utilisation', 'utilization', 'statement', 'minimum due', 'limit'],
+            'reminder' => ['reminder', 'bill', 'due', 'subscription', 'overdue', 'renewal', 'upcoming'],
+            'budget' => ['budget', 'limit', 'overspend', 'over budget', 'category limit'],
+            'goal' => ['goal', 'emergency fund', 'target', 'saving for'],
+            'networth' => ['net worth', 'networth', 'asset', 'wealth', 'portfolio'],
+            'saving' => ['save', 'saving', 'savings', 'surplus', 'left over', 'leftover'],
+            'spend' => ['spend', 'spent', 'spending', 'expense', 'expenses', 'cost', 'where did my money'],
+            'income' => ['income', 'earn', 'earned', 'salary'],
+        ];
+    }
+
+    /**
+     * @param  list<string>  $keywords
+     */
+    private function mentions(string $question, array $keywords): bool
+    {
+        foreach ($keywords as $keyword) {
+            if (str_contains($question, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{question:string, answer:string, tone:string}
+     */
+    private function reply(string $question, string $answer, string $tone): array
+    {
+        return ['question' => $question, 'answer' => $answer, 'tone' => $tone];
+    }
+
+    private function answerDebt(User $user, string $q): string
+    {
+        $debts = $user->debts()->where('status', 'active')->get();
+
+        if ($debts->isEmpty()) {
+            return 'You have no active loans or cards recorded, so there is nothing to pay down. Add a debt and I can build a payoff plan for it.';
+        }
+
+        $focus = $debts->sortByDesc('interest_rate')->first();
+        $smallest = $debts->sortBy('balance_cents')->first();
+        $totalCents = (int) $debts->sum('balance_cents');
+        $emiCents = (int) $debts->sum('emi_cents');
+        $plan = $this->simulatePayoff($debts, $emiCents);
+
+        $answer = sprintf(
+            'Close %s first — at %s%% it is your most expensive debt, costing about %s in interest a month. You owe %s across %d debt%s, with %s going out in EMIs.',
+            $focus->name,
+            $this->rate($focus->interest_rate),
+            $user->money((int) round($focus->balance_cents * ($focus->interest_rate / 100) / 12)),
+            $user->money($totalCents),
+            $debts->count(),
+            $debts->count() === 1 ? '' : 's',
+            $user->money($emiCents),
+        );
+
+        if ($plan['months'] > 0) {
+            $answer .= sprintf(' At this rate you are debt-free in %s (around %s).', $this->durationLabel($plan['months']), $plan['date']);
+        }
+
+        if ($smallest && $smallest->id !== $focus->id && $this->mentions($q, ['snowball', 'motivat', 'quick win', 'smallest'])) {
+            $answer .= sprintf(' If you would rather get a quick win first, %s is your smallest balance at %s.', $smallest->name, $user->money($smallest->balance_cents));
+        }
+
+        return $answer;
+    }
+
+    private function answerCard(User $user, string $q): string
+    {
+        $cards = $user->debts()->where('kind', 'credit_card')->where('status', 'active')->get();
+
+        if ($cards->isEmpty()) {
+            return 'You have no credit cards recorded yet. Add one and I can track its utilisation, statement date and minimum due.';
+        }
+
+        $hottest = $cards->sortByDesc(fn (Debt $c) => $c->utilisation())->first();
+        $dueTotal = (int) $cards->sum(fn (Debt $c) => $c->currentDueCents());
+
+        $answer = sprintf(
+            'You have %d card%s with %s currently due in total. %s is at %s%% utilisation%s.',
+            $cards->count(),
+            $cards->count() === 1 ? '' : 's',
+            $user->money($dueTotal),
+            $hottest->name,
+            $this->rate($hottest->utilisation()),
+            $hottest->utilisation() >= 30 ? ' — above the healthy 30% mark, so paying it down will lift your credit score' : ', which is healthy',
+        );
+
+        $nextDue = $cards->map(fn (Debt $c) => $c->nextDateForDay($c->due_day))->filter()->sort()->first();
+        if ($nextDue !== null) {
+            $answer .= ' Your next card payment falls on '.$nextDue->format('d M Y').'.';
+        }
+
+        if ($hottest->min_due_cents) {
+            $answer .= sprintf(' Paying only the %s minimum on %s keeps the interest running — clear the full statement if you can.', $user->money($hottest->min_due_cents), $hottest->name);
+        }
+
+        return $answer;
+    }
+
+    private function answerReminder(User $user, string $q): string
+    {
+        $today = Carbon::now()->startOfDay();
+        $bills = $user->bills()->where('status', '!=', 'paid')->orderBy('due_date')->get();
+        $overdue = $bills->where('status', 'overdue');
+        $subs = $user->bills()->where('kind', 'subscription')->get();
+
+        if ($bills->isEmpty() && $subs->isEmpty()) {
+            return 'Nothing is due — you have no open bills, EMIs or subscriptions recorded.';
+        }
+
+        $parts = [];
+
+        if ($overdue->isNotEmpty()) {
+            $parts[] = sprintf(
+                'You have %d overdue payment%s totalling %s — clear %s first to avoid late fees.',
+                $overdue->count(),
+                $overdue->count() === 1 ? '' : 's',
+                $user->money((int) $overdue->sum('amount_cents')),
+                $overdue->count() === 1 ? $overdue->first()->name : 'them',
+            );
+        }
+
+        $next = $bills->where('status', 'upcoming')->first();
+        if ($next !== null) {
+            $days = (int) round($today->diffInDays($next->due_date, false));
+            $parts[] = sprintf(
+                'Next up is %s at %s, %s.',
+                $next->name,
+                $user->money($next->amount_cents),
+                strtolower($this->relativeDay($days)),
+            );
+        }
+
+        if ($subs->isNotEmpty()) {
+            $parts[] = sprintf(
+                'Your %d subscription%s cost %s a month.',
+                $subs->count(),
+                $subs->count() === 1 ? '' : 's',
+                $user->money((int) $subs->sum('amount_cents')),
+            );
+        }
+
+        return implode(' ', $parts);
+    }
+
+    private function answerBudget(User $user, string $q): string
+    {
+        $now = Carbon::now();
+        $budgets = $user->budgets()->whereNull('household_id')->get();
+
+        if ($budgets->isEmpty()) {
+            return 'You have not set any budgets yet. Set a monthly limit on a category and I will track what you have spent against it.';
+        }
+
+        $entries = $user->entries()
+            ->whereBetween('occurred_on', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
+            ->get();
+        $rows = collect($this->budgetStatus($budgets, $entries));
+
+        $exceeded = $rows->where('exceeded', true);
+        $answer = sprintf('You are tracking %d budget%s this month.', $rows->count(), $rows->count() === 1 ? '' : 's');
+
+        if ($exceeded->isNotEmpty()) {
+            $answer .= ' Over limit: '.$exceeded->map(fn ($r) => sprintf('%s (%s of %s)', $r['category'], $user->money((int) round($r['spent'] * 100)), $user->money((int) round($r['limit'] * 100)))
+            )->implode(', ').'.';
+        } else {
+            $answer .= ' Every one of them is still within its limit — nice work.';
+        }
+
+        $tightest = $rows->reject(fn ($r) => $r['exceeded'])->sortByDesc('percent')->first();
+        if ($tightest !== null) {
+            $answer .= sprintf(' The closest to its cap is %s at %d%% used.', $tightest['category'], $tightest['percent']);
+        }
+
+        return $answer;
+    }
+
+    private function answerGoal(User $user, string $q): string
+    {
+        $goals = $user->goals()->get();
+
+        if ($goals->isEmpty()) {
+            return 'You have no savings goals yet. Create one — an emergency fund is the usual first step — and I will track your progress toward it.';
+        }
+
+        return 'Goals: '.$goals->map(fn ($g) => sprintf(
+            '%s — %s of %s saved (%d%%)',
+            $g->name,
+            $user->money($g->saved_cents),
+            $user->money($g->target_cents),
+            (int) round($g->progress()),
+        ))->implode('; ').'.';
+    }
+
+    private function answerNetworth(User $user, string $q): string
+    {
+        $assetsCents = (int) $user->financeAccounts()->sum('balance_cents');
+        $liabilitiesCents = (int) $user->debts()->where('status', 'active')->sum('balance_cents');
+        $net = $assetsCents - $liabilitiesCents;
+
+        if ($assetsCents === 0 && $liabilitiesCents === 0) {
+            return 'I do not have any assets or debts on file yet, so I cannot work out your net worth. Add your accounts and any loans to see it.';
+        }
+
+        return sprintf(
+            'Your net worth is %s — %s in assets minus %s in debts. %s',
+            $user->money($net),
+            $user->money($assetsCents),
+            $user->money($liabilitiesCents),
+            $net >= 0
+                ? 'You are in the green; growing assets faster than debt keeps it that way.'
+                : 'You owe more than you own right now, so clearing your highest-rate debt is the fastest way to turn this positive.',
+        );
+    }
+
+    private function answerSaving(User $user, string $q): string
+    {
+        $now = Carbon::now();
+        $entries = $user->entries()
+            ->whereBetween('occurred_on', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
+            ->get();
+
+        $incomeCents = (int) $entries->where('type', 'income')->sum('amount_cents');
+        $expenseCents = (int) $entries->where('type', 'expense')->sum('amount_cents');
+        $savedCents = $incomeCents - $expenseCents;
+
+        if ($incomeCents === 0 && $expenseCents === 0) {
+            return 'You have not logged any income or expenses this month yet, so there is nothing to work out savings from.';
+        }
+
+        $answer = sprintf(
+            'This month you have brought in %s and spent %s, so you are %s %s%s.',
+            $user->money($incomeCents),
+            $user->money($expenseCents),
+            $savedCents >= 0 ? 'saving' : 'over by',
+            $user->money(abs($savedCents)),
+            $incomeCents > 0 ? sprintf(' (%d%% of income)', (int) round($savedCents / $incomeCents * 100)) : '',
+        );
+
+        $top = $entries->where('type', 'expense')->groupBy('category')
+            ->map(fn ($rows) => (int) $rows->sum('amount_cents'))
+            ->sortDesc()->take(1);
+
+        if ($top->isNotEmpty()) {
+            $category = (string) $top->keys()->first();
+            $amount = (int) $top->first();
+            $answer .= sprintf(
+                ' Your biggest lever is %s at %s — trimming it by 20%% would free up about %s a month.',
+                $category !== '' ? $category : 'uncategorised spending',
+                $user->money($amount),
+                $user->money((int) round($amount * 0.2)),
+            );
+        }
+
+        return $answer;
+    }
+
+    private function answerSpend(User $user, string $q): string
+    {
+        $now = Carbon::now();
+        $entries = $user->entries()->where('type', 'expense')
+            ->whereBetween('occurred_on', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
+            ->get();
+
+        if ($entries->isEmpty()) {
+            return 'You have not logged any expenses this month, so there is nothing to break down yet.';
+        }
+
+        $totalCents = (int) $entries->sum('amount_cents');
+
+        // If the question names one of the user's own categories, answer about
+        // that category specifically instead of the whole month.
+        $categories = $entries->pluck('category')->filter()->unique();
+        $named = $categories->first(fn ($c) => str_contains($q, mb_strtolower((string) $c)));
+
+        if ($named !== null) {
+            $catCents = (int) $entries->where('category', $named)->sum('amount_cents');
+            $budget = $user->budgets()->whereNull('household_id')->where('category', $named)->first();
+
+            $answer = sprintf(
+                'You have spent %s on %s this month — %d%% of your %s total spend.',
+                $user->money($catCents),
+                $named,
+                $totalCents > 0 ? (int) round($catCents / $totalCents * 100) : 0,
+                $user->money($totalCents),
+            );
+
+            if ($budget !== null && $budget->limit_cents > 0) {
+                $answer .= $catCents > $budget->limit_cents
+                    ? sprintf(' That is over your %s budget by %s.', $user->money($budget->limit_cents), $user->money($catCents - $budget->limit_cents))
+                    : sprintf(' You have %s left of your %s budget.', $user->money($budget->limit_cents - $catCents), $user->money($budget->limit_cents));
+            }
+
+            return $answer;
+        }
+
+        $top = $entries->groupBy('category')
+            ->map(fn ($rows) => (int) $rows->sum('amount_cents'))
+            ->sortDesc()->take(3);
+
+        $breakdown = $top->map(fn (int $cents, $cat) => sprintf(
+            '%s %s (%d%%)',
+            $cat !== '' ? $cat : 'Other',
+            $user->money($cents),
+            $totalCents > 0 ? (int) round($cents / $totalCents * 100) : 0,
+        ))->implode(', ');
+
+        $lastMonthCents = (int) $user->entries()->where('type', 'expense')
+            ->whereBetween('occurred_on', [
+                $now->copy()->subMonthNoOverflow()->startOfMonth(),
+                $now->copy()->subMonthNoOverflow()->endOfMonth(),
+            ])->sum('amount_cents');
+
+        $answer = sprintf('You have spent %s this month across %d transactions. Top categories: %s.', $user->money($totalCents), $entries->count(), $breakdown);
+
+        if ($lastMonthCents > 0) {
+            $delta = $totalCents - $lastMonthCents;
+            $answer .= $delta >= 0
+                ? sprintf(' That is %s more than all of last month.', $user->money($delta))
+                : sprintf(' That is %s less than all of last month — good direction.', $user->money(abs($delta)));
+        }
+
+        return $answer;
+    }
+
+    private function answerIncome(User $user, string $q): string
+    {
+        $now = Carbon::now();
+        $entries = $user->entries()->where('type', 'income')
+            ->whereBetween('occurred_on', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
+            ->get();
+
+        if ($entries->isEmpty()) {
+            return 'No income is logged for this month yet. Add it and I can work out your savings rate and how much of it your EMIs take.';
+        }
+
+        $incomeCents = (int) $entries->sum('amount_cents');
+        $emiCents = (int) $user->debts()->where('status', 'active')->sum('emi_cents');
+
+        $answer = sprintf('You have logged %s of income this month across %d entries.', $user->money($incomeCents), $entries->count());
+
+        if ($emiCents > 0) {
+            $answer .= sprintf(
+                ' EMIs take %s of that (%d%%)%s.',
+                $user->money($emiCents),
+                (int) round($emiCents / $incomeCents * 100),
+                $emiCents / $incomeCents > 0.4 ? ' — above 40% is stretched' : '',
+            );
+        }
+
+        return $answer;
+    }
+
+    /**
+     * The catch-all reply: a real position summary, never a canned line.
+     */
+    private function answerOverview(User $user): string
+    {
+        $snapshot = $this->snapshot($user);
+        $kpis = $snapshot['kpis'];
+
+        return sprintf(
+            'Here is where you stand: net worth %s, %s in and %s out this month (%s saved), %s of debt with %s in EMIs, and a financial health score of %d/100. Ask me about your spending, savings, loans, cards, budgets or reminders for a closer look.',
+            $user->money((int) round($kpis['net_worth'] * 100)),
+            $user->money((int) round($kpis['income'] * 100)),
+            $user->money((int) round($kpis['expense'] * 100)),
+            $user->money((int) round($kpis['savings'] * 100)),
+            $user->money((int) round($kpis['total_debt'] * 100)),
+            $user->money((int) round($kpis['monthly_emi'] * 100)),
+            $snapshot['health']['score'],
+        );
+    }
+
+    /** "18.5" / "18" — a rate without trailing zeros. */
+    private function rate(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
     }
 
     /**
@@ -429,7 +881,38 @@ class CoachService
     }
 
     /**
+     * The last few entries of the current month, for the home screen's
+     * "recent activity" list.
+     *
+     * @param  Collection<int, Entry>  $entries
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentTransactions(Collection $entries, User $user): array
+    {
+        return $entries
+            ->sortByDesc(fn (Entry $e) => [$e->occurred_on->timestamp, $e->id])
+            ->take(5)
+            ->map(fn (Entry $e) => [
+                'id' => $e->id,
+                'type' => $e->type,
+                'category' => $e->category,
+                'description' => $e->description,
+                'payee' => $e->payee,
+                'amount' => $this->rupees($e->amount_cents),
+                'amount_label' => $user->money($e->amount_cents),
+                'occurred_on' => $e->occurred_on->format('Y-m-d'),
+                'label' => $e->occurred_on->format('d M'),
+                'repeat' => $e->repeat ?? 'none',
+                'recurring' => $e->repeats(),
+            ])->values()->all();
+    }
+
+    /**
      * Current-month expense breakdown by category with percentages.
+     *
+     * Percentages use largest-remainder rounding so the slices add up to
+     * exactly 100 — a naive round() per slice does not, and the app draws a
+     * pie chart straight from these numbers.
      *
      * @param  Collection<int, Entry>  $entries
      * @return array{total:float, slices:array<int, array<string, mixed>>}
@@ -442,17 +925,53 @@ class CoachService
         $slices = $expenses->groupBy('category')
             ->map(fn ($rows, $cat) => [
                 'category' => $cat ?: 'Other',
-                'amount' => (int) $rows->sum('amount_cents'),
+                'amount_cents' => (int) $rows->sum('amount_cents'),
             ])
-            ->sortByDesc('amount')
+            ->sortByDesc('amount_cents')
             ->values()
-            ->map(fn ($s) => [
-                'category' => $s['category'],
-                'amount' => $this->rupees($s['amount']),
-                'percent' => $totalCents > 0 ? round($s['amount'] / $totalCents * 100) : 0,
-            ])->all();
+            ->all();
+
+        $percents = $this->distributePercent(array_column($slices, 'amount_cents'), $totalCents);
+
+        $slices = array_map(fn (array $s, int $percent) => [
+            'category' => $s['category'],
+            'amount' => $this->rupees($s['amount_cents']),
+            'percent' => $percent,
+        ], $slices, $percents);
 
         return ['total' => $this->rupees($totalCents), 'slices' => $slices];
+    }
+
+    /**
+     * Split 100% across the given parts using largest-remainder rounding, so
+     * the whole-number percentages sum to exactly 100 (or all zero when there
+     * is nothing to split).
+     *
+     * @param  list<int>  $parts
+     * @return list<int>
+     */
+    private function distributePercent(array $parts, int $total): array
+    {
+        if ($total <= 0 || $parts === []) {
+            return array_fill(0, count($parts), 0);
+        }
+
+        $exact = array_map(fn (int $p) => $p / $total * 100, $parts);
+        $floors = array_map(intval(...), $exact);
+        $shortfall = 100 - array_sum($floors);
+
+        // Hand the leftover points to the parts with the biggest remainders.
+        $remainders = [];
+        foreach ($exact as $i => $value) {
+            $remainders[$i] = $value - $floors[$i];
+        }
+        arsort($remainders);
+
+        foreach (array_slice(array_keys($remainders), 0, max(0, $shortfall)) as $i) {
+            $floors[$i]++;
+        }
+
+        return array_values($floors);
     }
 
     /**

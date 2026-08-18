@@ -248,6 +248,18 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasMany(Challenge::class);
     }
 
+    /** @return HasMany<EntryAttachment, $this> */
+    public function entryAttachments(): HasMany
+    {
+        return $this->hasMany(EntryAttachment::class);
+    }
+
+    /** @return HasMany<NotificationRead, $this> */
+    public function notificationReads(): HasMany
+    {
+        return $this->hasMany(NotificationRead::class);
+    }
+
     /** @return BelongsToMany<Household, $this> */
     public function households(): BelongsToMany
     {

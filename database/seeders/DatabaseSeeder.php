@@ -16,8 +16,26 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Defined explicitly (no factory) so seeding also works in production
-        // images where faker is a dev-only dependency.
+        // Reference data the app needs in every environment, production
+        // included: category templates, plans, CMS content, settings.
+        $this->call([
+            CategoryTemplateSeeder::class,
+            PlanSeeder::class,
+            ContentSeeder::class,
+            SettingSeeder::class,
+        ]);
+
+        if (! $this->demoDataEnabled()) {
+            $this->command?->info('Skipping demo accounts and demo finance data (set MONEYCOACH_DEMO_SEED=true to include them).');
+
+            return;
+        }
+
+        // --- Demo data below. Never seeded in production: a real account must
+        // --- only ever see its own figures, never sample ones.
+
+        // Defined explicitly (no factory) so seeding also works in images
+        // where faker is a dev-only dependency.
         $testUser = User::firstOrNew(['email' => 'test@example.com']);
         $testUser->name = 'Test User';
         $testUser->password = Hash::make('password');
@@ -33,16 +51,21 @@ class DatabaseSeeder extends Seeder
         $admin->save();
 
         $this->call([
-            CategoryTemplateSeeder::class,
-            PlanSeeder::class,
             SubscriptionSeeder::class,
-            ContentSeeder::class,
-            SettingSeeder::class,
             DataRequestSeeder::class,
             FinanceDemoSeeder::class,
             VaultDemoSeeder::class,
             // After FinanceDemoSeeder — it wipes the demo user's entries.
             FamilyDemoSeeder::class,
         ]);
+    }
+
+    /**
+     * Demo data is opt-in and never runs in production, so a live deploy's
+     * `db:seed` can install reference data without inventing any user's money.
+     */
+    private function demoDataEnabled(): bool
+    {
+        return (bool) env('MONEYCOACH_DEMO_SEED', ! app()->environment('production'));
     }
 }
