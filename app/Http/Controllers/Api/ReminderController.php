@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Bill;
 use App\Models\NotificationRead;
+use App\Models\User;
 use App\Services\InsightService;
 use App\Support\Money;
 use App\Support\Options;
@@ -41,7 +42,7 @@ class ReminderController extends Controller
             'upcoming' => $bills->where('status', 'upcoming')->where('kind', '!=', 'subscription')->map($this->present($today, $readKeys))->values(),
             'done' => $bills->where('status', 'paid')->sortByDesc('paid_on')->map($this->present($today, $readKeys))->values(),
             'subscriptions' => $subscriptions->map($this->present($today, $readKeys))->values(),
-            'subscription_monthly' => Money::toRupees((int) $subscriptions->sum('amount_cents')),
+            'subscription_monthly' => Money::toRupees($this->subscriptionMonthlyCents($user)),
             'unread' => $this->insights->remindersUnreadCount($user),
             'unread_count' => $this->insights->remindersUnreadCount($user),
         ]);
@@ -162,9 +163,7 @@ class ReminderController extends Controller
         return response()->json([
             'message' => 'Reminder deleted.',
             'deleted_id' => $deletedId,
-            'subscription_monthly' => Money::toRupees(
-                (int) $request->user()->bills()->where('kind', 'subscription')->sum('amount_cents')
-            ),
+            'subscription_monthly' => Money::toRupees($this->subscriptionMonthlyCents($request->user())),
         ]);
     }
 
@@ -191,6 +190,20 @@ class ReminderController extends Controller
             'message' => 'Marked as paid. Great job! ✅',
             'bill' => ($this->present(Carbon::now()->startOfDay()))($bill->fresh()),
         ]);
+    }
+
+    /**
+     * Total monthly cost of the user's subscriptions, normalised across repeat
+     * cycles (see {@see Bill::monthlyCostCents()}). One-off subscriptions
+     * contribute nothing, so a cancelled or already-settled one-time charge
+     * does not inflate the figure.
+     */
+    private function subscriptionMonthlyCents(User $user): int
+    {
+        return (int) $user->bills()
+            ->where('kind', 'subscription')
+            ->get()
+            ->sum(fn (Bill $b) => $b->monthlyCostCents());
     }
 
     /** "Due today" / "Due in 3 days" / "Overdue by 2 days". */

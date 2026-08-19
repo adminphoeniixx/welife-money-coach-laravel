@@ -43,6 +43,30 @@ class Bill extends Model
         ];
     }
 
+    /**
+     * What this reminder costs per month, normalised across repeat cycles.
+     *
+     * A yearly subscription is not a monthly cost of its full price, and a
+     * weekly one bills about 4.33 times a month — summing `amount_cents` as-is
+     * (which is what `subscription_monthly` used to do) overstates the first
+     * and understates the second. A reminder that does not recur has no
+     * monthly cost at all.
+     */
+    public function monthlyCostCents(): int
+    {
+        return match ($this->repeat) {
+            'weekly' => (int) round($this->amount_cents * 52 / 12),
+            'monthly' => $this->amount_cents,
+            'yearly' => (int) round($this->amount_cents / 12),
+            default => 0,
+        };
+    }
+
+    public function isSubscription(): bool
+    {
+        return $this->kind === 'subscription';
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

@@ -323,6 +323,74 @@ class MoneyCoachApiTest extends TestCase
 
     // --- Reminders ----------------------------------------------------------
 
+    /**
+     * @param  array<int, array{0: string, 1: int, 2: string}>  $subs  [name, cents, repeat]
+     */
+    private function subscriptionsFor(User $user, array $subs): void
+    {
+        foreach ($subs as [$name, $cents, $repeat]) {
+            $user->bills()->create([
+                'name' => $name, 'kind' => 'subscription', 'amount_cents' => $cents,
+                'due_date' => now()->addDays(5), 'repeat' => $repeat,
+                'remind_days_before' => 3, 'status' => 'upcoming',
+            ]);
+        }
+    }
+
+    public function test_subscription_monthly_normalises_yearly_and_weekly_cycles(): void
+    {
+        $user = User::factory()->create();
+        $this->subscriptionsFor($user, [
+            ['Netflix', 19900, 'monthly'],   // 199.00 / month
+            ['Prime', 149900, 'yearly'],     // 1499.00 / 12 = 124.92
+            ['Locker', 10000, 'weekly'],     // 100.00 * 52 / 12 = 433.33
+            ['One-off', 500000, 'one_time'], // does not recur -> 0
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/reminders')->assertOk()
+            ->assertJsonPath('subscription_monthly', 757.25);
+    }
+
+    public function test_every_reminder_item_carries_its_kind(): void
+    {
+        $user = User::factory()->create();
+        $this->subscriptionsFor($user, [['Netflix', 19900, 'monthly']]);
+        $user->bills()->create([
+            'name' => 'Electricity', 'kind' => 'bill', 'amount_cents' => 120000,
+            'due_date' => now()->addDays(4), 'repeat' => 'monthly',
+            'remind_days_before' => 3, 'status' => 'upcoming',
+        ]);
+
+        Sanctum::actingAs($user);
+        $body = $this->getJson('/api/reminders')->assertOk()->json();
+
+        $this->assertNotEmpty($body['subscriptions']);
+
+        foreach (['overdue', 'upcoming', 'done', 'subscriptions'] as $list) {
+            foreach ($body[$list] as $item) {
+                $this->assertArrayHasKey('kind', $item, "$list item is missing kind");
+                $this->assertContains($item['kind'], ['bill', 'subscription', 'emi']);
+            }
+        }
+
+        // The app keys off this exact lowercase string.
+        $this->assertSame('subscription', $body['subscriptions'][0]['kind']);
+    }
+
+    public function test_deleting_a_subscription_returns_the_recalculated_monthly_total(): void
+    {
+        $user = User::factory()->create();
+        $this->subscriptionsFor($user, [['Netflix', 19900, 'monthly'], ['Prime', 149900, 'yearly']]);
+
+        Sanctum::actingAs($user);
+        $prime = $user->bills()->where('name', 'Prime')->firstOrFail();
+
+        $this->deleteJson("/api/bills/{$prime->id}")->assertOk()
+            ->assertJsonPath('subscription_monthly', 199);
+    }
+
     public function test_reminder_can_be_created_and_appears_in_index(): void
     {
         $user = User::factory()->create();
