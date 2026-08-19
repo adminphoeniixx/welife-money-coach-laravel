@@ -13,11 +13,11 @@ isko akela bhej sakte ho.
 
 | Sawaal | Jawab |
 |---|---|
-| Subscriptions kaise aa rahi hain? | 🟢 **Dono tarah** — dedicated top-level `subscriptions` array **aur** status lists ke andar bhi |
+| Subscriptions kaise aa rahi hain? | 🟢 Dedicated top-level `subscriptions` array me — **sirf wahin** (Option A ke baad) |
 | `kind: "subscription"` hai? | 🟢 Haan, har item pe, exact lowercase `"subscription"` |
 | `subscription_monthly` aata hai? | 🟢 Aata tha — par **math galat tha**, ab fix hai |
 | Per-subscription reminder on/off? | 🔴 **Backend me support nahi hai.** Frontend se hataya, sahi kiya |
-| Kuch aur? | 🟡 Ek list-overlap hai jispe **tumhara decision chahiye** — neeche Part 4 |
+| List overlap? | 🟢 **Option A implement ho gaya** — subscriptions ab sirf `subscriptions` array me |
 
 ---
 
@@ -41,7 +41,8 @@ isko akela bhej sakte ho.
 ```
 
 `subscriptions` **hamesha present hai** (kabhi missing nahi, worst case `[]`), aur usme
-user ki **saari** subscriptions hoti hain — status kuch bhi ho.
+user ki **saari** subscriptions hoti hain — status kuch bhi ho. Option A ke baad ye
+subscriptions ka **ekmaatra** source hai.
 
 Ek item ka pura shape:
 
@@ -127,39 +128,35 @@ ke baad dobara `GET /reminders` maarne ki zaroorat nahi.
 
 ---
 
-## 🟡 Part 4 — List overlap (yahan decision chahiye)
+## 🟢 Part 4 — List overlap (Option A ho gaya)
 
-Ye **abhi change nahi kiya** kyunki isse app ka UI badal jayega — pehle tum batao kya chahiye.
+Pehle chaaron lists ka rule consistent nahi tha: `overdue` aur `done` me subscriptions
+aa jaati thi, `upcoming` me nahi. Isse ek overdue subscription do jagah dikh sakti thi.
 
-Filhaal chaaron lists ka rule **consistent nahi** hai:
+**Ab Option A lagu hai.** Subscriptions ka ek hi ghar hai:
 
-| List | Subscriptions include hoti hain? |
+| List | Kya hota hai |
 |---|---|
-| `overdue` | ✅ Haan |
-| `upcoming` | ❌ **Nahi** (explicitly filter out hoti hain) |
-| `done` | ✅ Haan |
-| `subscriptions` | ✅ Saari, status kuch bhi ho |
+| `overdue` | Sirf `bill` + `emi` |
+| `upcoming` | Sirf `bill` + `emi` |
+| `done` | Sirf `bill` + `emi` |
+| `subscriptions` | **Saari** subscriptions, status kuch bhi ho |
 
-Iska matlab: ek **overdue** subscription `overdue` aur `subscriptions` **dono** me aati
-hai, par ek **upcoming** subscription sirf `subscriptions` me. Agar tum dono lists render
-kar rahe ho to overdue subscription **do baar** dikhegi.
+Yaani `overdue` / `upcoming` / `done` me ab kabhi `kind: "subscription"` nahi aayega —
+dedupe ki zaroorat hi nahi padegi (tumhara id-based dedupe safety net ke taur pe rehne
+do, koi nuksaan nahi).
 
-**Do options:**
+Overdue ya paid subscriptions dikhani hon to `subscriptions` array me har item ka
+`status` field padho:
 
-- **Option A — status lists sirf bills/EMI ki hon.** `overdue` aur `done` se bhi
-  subscriptions nikaal di jayein. Saari subscriptions ka ek hi ghar: `subscriptions`
-  array (uske andar `status` field se overdue/paid pata chal jayega).
-  *App-side:* overdue subscriptions ko `subscriptions.where(status == 'overdue')` se
-  khud merge karna padega.
+```dart
+final overdueSubs = subscriptions.where((s) => s['status'] == 'overdue');
+final paidSubs    = subscriptions.where((s) => s['status'] == 'paid');
+```
 
-- **Option B — status lists complete hon.** `upcoming` me bhi subscriptions aane lagein.
-  Teeno status lists poori, aur `subscriptions` ek convenience view. Duplication har
-  jagah uniform ho jayega, `kind` se filter kar lena.
-  *App-side:* kuch todna nahi padega, sirf duplication handle karna hoga.
-
-Mera suggestion **Option A** hai — subscriptions ka apna screen hai, to unka ek hi source
-of truth rakhna saaf rahega. Par ye product call hai, isliye chhoda hua hai. Bata do,
-ek line ka change hai.
+**`unread` / `unread_count` pe koi asar nahi.** Wo abhi bhi subscriptions ko count karta
+hai — ek due subscription bhi ek notification hai. Use read mark karne ke liye wahi
+`POST /bills/{id}/read` chalta hai, subscriptions array ke item ki `id` ke saath.
 
 ---
 
@@ -215,20 +212,38 @@ toggle mat dikhana.
 
 ## Verification
 
-Ye sab **204 → 207 passing tests** ke saath cover hai. Naye tests:
+Ye sab **208 passing tests** ke saath cover hai. Naye tests:
 
 - `subscription_monthly` yearly aur weekly cycles ko sahi normalise karti hai
 - chaaron lists ke har item pe `kind` hai, aur `subscriptions` items pe exact
   `"subscription"` string hai
+- `overdue` / `upcoming` / `done` me koi subscription nahi aati, aur har subscription ka
+  `status` `subscriptions` array me readable rehta hai
 - `DELETE /bills/{id}` recalculated `subscription_monthly` deta hai
 
 ---
 
 ## Deploy status
 
-⚠️ **Ye changes abhi live pe nahi hain.** Code commit ho chuka hai, par Easypanel deploy
-manual hai. Deploy ke baad `subscription_monthly` ki value badal jayegi (upar Part 3 wali
-table dekho) — agar app abhi purani value pe koi assertion kar raha hai to dhyaan rakhna.
+| Change | Status |
+|---|---|
+| `subscription_monthly` normalisation (Part 3) | Commit `51c7911` — deploy ho chuka hai, verify pending |
+| Option A list separation (Part 4) | Commit `c6d43d6` — **abhi deploy nahi hua** |
 
-Is change me koi migration nahi hai, to deploy ke baad `php artisan migrate` ki zaroorat
-nahi.
+Is release me koi migration nahi hai, to deploy ke baad `php artisan migrate` ki
+zaroorat nahi.
+
+**Deploy ke baad ye verify karna:**
+
+```bash
+curl -s -H "Authorization: Bearer <token>" \
+     -H "Accept: application/json" \
+     https://projects-money-coch.rmsiry.easypanel.host/api/reminders \
+  | python3 -m json.tool
+```
+
+Check karo:
+
+1. `subscription_monthly` — yearly subscription ab `amount ÷ 12` contribute kar rahi ho
+2. `overdue` / `upcoming` / `done` — inme koi `"kind": "subscription"` item na ho
+3. `subscriptions` — saari subscriptions yahan hon, apne `status` ke saath

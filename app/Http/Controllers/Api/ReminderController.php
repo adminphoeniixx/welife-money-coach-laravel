@@ -31,17 +31,22 @@ class ReminderController extends Controller
         $bills = $user->bills()->orderBy('due_date')->get();
         $today = Carbon::now()->startOfDay();
 
-        $subscriptions = $bills->where('kind', 'subscription');
+        $subscriptions = $bills->filter->isSubscription();
+        // Subscriptions have their own array and their own screen; keeping them
+        // out of the status lists means one home each, and no item that has to
+        // be de-duplicated across two of them.
+        $reminders = $bills->reject->isSubscription();
         $readKeys = $user->notificationReads()->pluck('key')->flip();
+        $present = $this->present($today, $readKeys);
 
         return response()->json([
             'kinds' => Options::reminderKinds(),
             'repeat_options' => Options::repeatOptions(),
             'remind_days_before_options' => Options::remindDaysBefore(),
-            'overdue' => $bills->where('status', 'overdue')->map($this->present($today, $readKeys))->values(),
-            'upcoming' => $bills->where('status', 'upcoming')->where('kind', '!=', 'subscription')->map($this->present($today, $readKeys))->values(),
-            'done' => $bills->where('status', 'paid')->sortByDesc('paid_on')->map($this->present($today, $readKeys))->values(),
-            'subscriptions' => $subscriptions->map($this->present($today, $readKeys))->values(),
+            'overdue' => $reminders->where('status', 'overdue')->map($present)->values(),
+            'upcoming' => $reminders->where('status', 'upcoming')->map($present)->values(),
+            'done' => $reminders->where('status', 'paid')->sortByDesc('paid_on')->map($present)->values(),
+            'subscriptions' => $subscriptions->map($present)->values(),
             'subscription_monthly' => Money::toRupees($this->subscriptionMonthlyCents($user)),
             'unread' => $this->insights->remindersUnreadCount($user),
             'unread_count' => $this->insights->remindersUnreadCount($user),

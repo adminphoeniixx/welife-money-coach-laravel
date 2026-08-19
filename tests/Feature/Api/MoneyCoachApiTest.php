@@ -379,6 +379,50 @@ class MoneyCoachApiTest extends TestCase
         $this->assertSame('subscription', $body['subscriptions'][0]['kind']);
     }
 
+    public function test_subscriptions_stay_out_of_the_status_lists(): void
+    {
+        $user = User::factory()->create();
+
+        foreach ([['Spotify', 'overdue', -3], ['Netflix', 'upcoming', 5]] as [$name, $status, $offset]) {
+            $user->bills()->create([
+                'name' => $name, 'kind' => 'subscription', 'amount_cents' => 19900,
+                'due_date' => now()->addDays($offset), 'repeat' => 'monthly',
+                'remind_days_before' => 3, 'status' => $status,
+            ]);
+        }
+        $user->bills()->create([
+            'name' => 'Old Sub', 'kind' => 'subscription', 'amount_cents' => 19900,
+            'due_date' => now()->subDays(30), 'repeat' => 'one_time',
+            'remind_days_before' => 3, 'status' => 'paid', 'paid_on' => now()->subDays(30),
+        ]);
+        $user->bills()->create([
+            'name' => 'Electricity', 'kind' => 'bill', 'amount_cents' => 120000,
+            'due_date' => now()->subDays(2), 'repeat' => 'monthly',
+            'remind_days_before' => 3, 'status' => 'overdue',
+        ]);
+
+        Sanctum::actingAs($user);
+        $body = $this->getJson('/api/reminders')->assertOk()->json();
+
+        // Every subscription lives in exactly one place: the subscriptions array.
+        foreach (['overdue', 'upcoming', 'done'] as $list) {
+            $kinds = collect($body[$list])->pluck('kind')->unique()->all();
+            $this->assertNotContains('subscription', $kinds, "$list still carries subscriptions");
+        }
+
+        $this->assertSame(['Electricity'], collect($body['overdue'])->pluck('title')->all());
+        $this->assertEqualsCanonicalizing(
+            ['Spotify', 'Netflix', 'Old Sub'],
+            collect($body['subscriptions'])->pluck('title')->all(),
+        );
+
+        // The status each subscription was hidden under is still readable.
+        $this->assertSame(
+            'overdue',
+            collect($body['subscriptions'])->firstWhere('title', 'Spotify')['status'],
+        );
+    }
+
     public function test_deleting_a_subscription_returns_the_recalculated_monthly_total(): void
     {
         $user = User::factory()->create();
