@@ -228,7 +228,7 @@ Ye sab **208 passing tests** ke saath cover hai. Naye tests:
 | Change | Status |
 |---|---|
 | `subscription_monthly` normalisation (Part 3) | Commit `51c7911` — deploy ho chuka hai, verify pending |
-| Option A list separation (Part 4) | Commit `c6d43d6` — **abhi deploy nahi hua** |
+| Option A list separation (Part 4) | Commit `d86d2e6` — **abhi deploy nahi hua** |
 
 Is release me koi migration nahi hai, to deploy ke baad `php artisan migrate` ki
 zaroorat nahi.
