@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\StreamsPrivateFiles;
 use App\Models\Document;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\RedirectResponse;
@@ -17,6 +18,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
+    use StreamsPrivateFiles;
+
     /** Private disk holding the encrypted document blobs. */
     private const DISK = 'local';
 
@@ -159,7 +162,7 @@ class DocumentController extends Controller
     private function stream(Document $document, bool $inline): StreamedResponse
     {
         try {
-            $contents = Crypt::decryptString(Storage::disk(self::DISK)->get($document->path));
+            $contents = Crypt::decryptString($this->readPrivateFile(self::DISK, $document->path));
         } catch (DecryptException) {
             abort(500, 'This document could not be decrypted.');
         }

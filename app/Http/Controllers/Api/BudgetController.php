@@ -37,7 +37,7 @@ class BudgetController extends Controller
             'budget_categories' => Options::expenseCategories(),
             'goal_types' => Options::goalTypes(),
             'budgets' => $budgets->values(),
-            'goals' => $user->goals()->latest()->get()->map($this->presentGoal(...))->values(),
+            'goals' => $user->goals()->latest()->get()->map(fn (Goal $g) => $g->toApi())->values(),
         ]);
     }
 
@@ -97,22 +97,6 @@ class BudgetController extends Controller
             ->where('category', $b->category)
             ->whereBetween('occurred_on', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
             ->sum('amount_cents');
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function presentGoal(Goal $g): array
-    {
-        return [
-            'id' => $g->id,
-            'name' => $g->name,
-            'type' => $g->type,
-            'target' => Money::toRupees($g->target_cents),
-            'saved' => Money::toRupees($g->saved_cents),
-            'progress' => $g->progress(),
-            'target_date' => $g->target_date?->format('Y-m-d'),
-        ];
     }
 
     /**

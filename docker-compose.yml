@@ -32,4 +32,13 @@ services:
       QUEUE_CONNECTION: database
       CACHE_STORE: database
       SESSION_DRIVER: database
+    # Uploaded proofs, debt documents and vault files are encrypted blobs on
+    # the local disk. Without a persistent mount they live inside the
+    # container and every redeploy wipes them, leaving rows in Postgres whose
+    # files are gone (the API then 404s those links).
+    volumes:
+      - money-storage:/var/www/html/storage/app/private
     restart: unless-stopped
+
+volumes:
+  money-storage:

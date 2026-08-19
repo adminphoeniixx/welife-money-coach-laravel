@@ -206,6 +206,40 @@ class ProofAttachmentTest extends TestCase
         $this->assertDatabaseHas('entry_attachments', ['id' => $attachment->id]);
     }
 
+    public function test_a_proof_whose_blob_is_gone_is_a_404_not_a_decryption_error(): void
+    {
+        Storage::fake('local');
+        Sanctum::actingAs(User::factory()->create());
+
+        $url = $this->post('/api/entries', $this->entryPayload([
+            'attachments' => [$this->proof()],
+        ]))->json('entry.attachments.0.url');
+
+        // What a redeploy onto an ephemeral container filesystem does: the row
+        // survives in the database, the encrypted blob does not.
+        Storage::disk('local')->delete(EntryAttachment::firstOrFail()->path);
+
+        $this->withoutMiddleware(CheckAbilities::class)
+            ->get($url)
+            ->assertNotFound();
+    }
+
+    public function test_a_corrupted_blob_still_reports_a_decryption_failure(): void
+    {
+        Storage::fake('local');
+        Sanctum::actingAs(User::factory()->create());
+
+        $url = $this->post('/api/entries', $this->entryPayload([
+            'attachments' => [$this->proof()],
+        ]))->json('entry.attachments.0.url');
+
+        Storage::disk('local')->put(EntryAttachment::firstOrFail()->path, 'not-an-encrypted-payload');
+
+        $this->withoutMiddleware(CheckAbilities::class)
+            ->get($url)
+            ->assertStatus(500);
+    }
+
     public function test_deleting_a_transaction_clears_its_proof_blobs(): void
     {
         Storage::fake('local');

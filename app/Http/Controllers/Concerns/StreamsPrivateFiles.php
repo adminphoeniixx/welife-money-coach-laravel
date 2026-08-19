@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Concerns;
 
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -38,6 +39,32 @@ trait StreamsPrivateFiles
     }
 
     /**
+     * Read an encrypted blob off the private disk, or 404 if it is gone.
+     *
+     * The private disk is configured with `throw => false`, so a file that is
+     * no longer on disk comes back as null and reaches `decryptString()` as an
+     * empty payload — which raises DecryptException and gets reported as
+     * "could not be decrypted", pointing at the wrong thing entirely. A blob
+     * that has disappeared (an ephemeral container filesystem being the usual
+     * reason) is a 404, so rule that out before decrypting.
+     */
+    private function readPrivateFile(string $disk, string $path): string
+    {
+        $payload = Storage::disk($disk)->get($path);
+
+        if ($payload === null || $payload === '') {
+            Log::warning('Private file missing from disk.', [
+                'disk' => $disk,
+                'path' => $path,
+            ]);
+
+            abort(404, 'This file is no longer available on the server.');
+        }
+
+        return $payload;
+    }
+
+    /**
      * Decrypt a blob off the private disk and stream it.
      *
      * `streamDownload()` builds its own Content-Disposition from its fourth
@@ -46,9 +73,21 @@ trait StreamsPrivateFiles
      */
     private function streamPrivateFile(string $disk, string $path, string $mimeType, string $originalName, bool $inline, string $failureMessage): StreamedResponse
     {
+        $payload = $this->readPrivateFile($disk, $path);
+
         try {
-            $contents = Crypt::decryptString(Storage::disk($disk)->get($path));
-        } catch (DecryptException) {
+            $contents = Crypt::decryptString($payload);
+        } catch (DecryptException $e) {
+            // A blob that is present but undecryptable means the key that
+            // encrypted it is not the key in use now (APP_KEY rotated), or the
+            // blob is truncated. Log which, so it is not guesswork later.
+            Log::error('Private file could not be decrypted.', [
+                'disk' => $disk,
+                'path' => $path,
+                'bytes' => strlen($payload),
+                'reason' => $e->getMessage(),
+            ]);
+
             abort(500, $failureMessage);
         }
 

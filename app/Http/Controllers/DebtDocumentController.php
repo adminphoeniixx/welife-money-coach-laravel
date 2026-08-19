@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\StreamsPrivateFiles;
 use App\Models\Debt;
 use App\Models\DebtDocument;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -15,6 +16,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DebtDocumentController extends Controller
 {
+    use StreamsPrivateFiles;
+
     /** Accepted attachment types + size (photos and PDFs). */
     private const RULES = ['file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'];
 
@@ -82,7 +85,7 @@ class DebtDocumentController extends Controller
     private function stream(DebtDocument $document, bool $inline): StreamedResponse
     {
         try {
-            $contents = Crypt::decryptString(Storage::disk(DebtDocument::DISK)->get($document->path));
+            $contents = Crypt::decryptString($this->readPrivateFile(DebtDocument::DISK, $document->path));
         } catch (DecryptException) {
             abort(500, 'This document could not be decrypted.');
         }

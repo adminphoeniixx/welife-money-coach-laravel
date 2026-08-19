@@ -55,7 +55,7 @@ class CoachService
 
         $cards = $debts->where('kind', 'credit_card');
         $avgUtilisation = $this->averageUtilisation($cards);
-        $emergencyGoals = $goals->where('type', 'emergency_fund');
+        $emergencyGoals = $goals->filter->isEmergencyFund();
         $emergency = $emergencyGoals->first();
         $overdueCount = $bills->where('status', 'overdue')->count();
 
@@ -99,24 +99,8 @@ class CoachService
                 'interest_left' => $this->rupees($payoff['interest_cents']),
                 'progress' => $this->debtProgress($debts),
             ],
-            'emergency_fund' => $emergency ? [
-                'id' => $emergency->id,
-                'name' => $emergency->name,
-                'type' => $emergency->type,
-                'target' => $this->rupees($emergency->target_cents),
-                'saved' => $this->rupees($emergency->saved_cents),
-                'progress' => $emergency->progress(),
-                'target_date' => $emergency->target_date?->format('Y-m-d'),
-            ] : null,
-            'goals' => $goals->where('type', '!=', 'emergency_fund')->map(fn ($g) => [
-                'id' => $g->id,
-                'name' => $g->name,
-                'type' => $g->type,
-                'target' => $this->rupees($g->target_cents),
-                'saved' => $this->rupees($g->saved_cents),
-                'progress' => $g->progress(),
-                'target_date' => $g->target_date?->format('Y-m-d'),
-            ])->values(),
+            'emergency_fund' => $emergency?->toApi(),
+            'goals' => $goals->reject->isEmergencyFund()->map->toApi()->values(),
             'budgets' => $this->budgetStatus($budgets, $monthEntries),
             'upcoming' => $this->upcomingBills($bills),
             'spending' => $this->spendingBreakdown($monthEntries),

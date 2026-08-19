@@ -7,9 +7,11 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class MoneyCoachApiTest extends TestCase
@@ -244,6 +246,79 @@ class MoneyCoachApiTest extends TestCase
         Sanctum::actingAs($user);
         $this->postJson("/api/goals/{$goal->id}/contribute", ['amount' => 1000])
             ->assertOk()->assertJsonPath('reached', true);
+    }
+
+    public function test_planning_goals_always_carry_an_id_and_a_canonical_type(): void
+    {
+        $user = User::factory()->create();
+        $user->goals()->create([
+            'name' => 'Emergency Fund', 'type' => 'emergency_fund',
+            'target_cents' => 30000000, 'saved_cents' => 17500000,
+        ]);
+        $user->goals()->create([
+            'name' => 'Bike', 'type' => 'savings',
+            'target_cents' => 5000000, 'saved_cents' => 1000000,
+        ]);
+
+        Sanctum::actingAs($user);
+        $goals = $this->getJson('/api/planning')->assertOk()->json('goals');
+
+        $this->assertCount(2, $goals);
+
+        foreach ($goals as $goal) {
+            // `id` is what POST /goals/{id}/contribute is called with.
+            $this->assertArrayHasKey('id', $goal);
+            $this->assertIsInt($goal['id']);
+            $this->assertContains($goal['type'], ['emergency_fund', 'savings']);
+        }
+
+        $emergency = collect($goals)->firstWhere('type', 'emergency_fund');
+        $this->assertNotNull($emergency);
+        $this->assertSame('Emergency Fund', $emergency['name']);
+        $this->assertEquals(300000, $emergency['target']);
+        $this->assertEquals(175000, $emergency['saved']);
+    }
+
+    /**
+     * @return list<array{0: string}>
+     */
+    public static function legacyEmergencyTypes(): array
+    {
+        return [['Emergency Fund'], ['emergency-fund'], ['EMERGENCY_FUND'], [' emergency_fund ']];
+    }
+
+    #[DataProvider('legacyEmergencyTypes')]
+    public function test_a_loosely_written_emergency_type_is_served_as_the_canonical_key(string $stored): void
+    {
+        $user = User::factory()->create();
+        $goal = $user->goals()->create([
+            'name' => 'Emergency Fund', 'type' => 'savings',
+            'target_cents' => 30000000, 'saved_cents' => 17500000,
+        ]);
+
+        // Write past the model so the row holds exactly the legacy spelling.
+        DB::table('goals')->where('id', $goal->id)->update(['type' => $stored]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/planning')->assertOk()
+            ->assertJsonPath('goals.0.type', 'emergency_fund')
+            ->assertJsonPath('goals.0.id', $goal->id);
+    }
+
+    public function test_an_unknown_goal_type_is_left_alone_rather_than_relabelled(): void
+    {
+        $user = User::factory()->create();
+        $goal = $user->goals()->create([
+            'name' => 'Retirement', 'type' => 'savings',
+            'target_cents' => 1000000, 'saved_cents' => 0,
+        ]);
+        DB::table('goals')->where('id', $goal->id)->update(['type' => 'retirement']);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/planning')->assertOk()
+            ->assertJsonPath('goals.0.type', 'retirement');
     }
 
     // --- Reminders ----------------------------------------------------------

@@ -16,7 +16,7 @@ class GoalController extends Controller
     {
         $goal = $request->user()->goals()->create($this->validated($request));
 
-        return response()->json(['message' => 'Goal created.', 'goal' => $this->present($goal)], 201);
+        return response()->json(['message' => 'Goal created.', 'goal' => $goal->toApi()], 201);
     }
 
     public function update(Request $request, Goal $goal): JsonResponse
@@ -25,7 +25,7 @@ class GoalController extends Controller
 
         $goal->update($this->validated($request));
 
-        return response()->json(['message' => 'Goal updated.', 'goal' => $this->present($goal->fresh())]);
+        return response()->json(['message' => 'Goal updated.', 'goal' => $goal->fresh()->toApi()]);
     }
 
     public function destroy(Request $request, Goal $goal): JsonResponse
@@ -59,24 +59,8 @@ class GoalController extends Controller
                 ? '🎉 Goal reached: '.$goal->name.'!'
                 : 'Added to '.$goal->name.'.',
             'reached' => $reachedNow,
-            'goal' => $this->present($goal->fresh()),
+            'goal' => $goal->fresh()->toApi(),
         ]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function present(Goal $g): array
-    {
-        return [
-            'id' => $g->id,
-            'name' => $g->name,
-            'type' => $g->type,
-            'target' => Money::toRupees($g->target_cents),
-            'saved' => Money::toRupees($g->saved_cents),
-            'progress' => $g->progress(),
-            'target_date' => $g->target_date?->format('Y-m-d'),
-        ];
     }
 
     /**
