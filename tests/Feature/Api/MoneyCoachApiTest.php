@@ -423,6 +423,46 @@ class MoneyCoachApiTest extends TestCase
         );
     }
 
+    public function test_a_settled_reminder_is_not_flagged_overdue(): void
+    {
+        $user = User::factory()->create();
+
+        // Paid long after its due date passed — `days` stays negative, but the
+        // reminder is settled, so nothing should style it as overdue.
+        $user->bills()->create([
+            'name' => 'Old Sub', 'kind' => 'subscription', 'amount_cents' => 50000,
+            'due_date' => now()->subDays(30), 'repeat' => 'one_time',
+            'remind_days_before' => 3, 'status' => 'paid', 'paid_on' => now()->subDays(30),
+        ]);
+        $user->bills()->create([
+            'name' => 'Old Bill', 'kind' => 'bill', 'amount_cents' => 30000,
+            'due_date' => now()->subDays(12), 'repeat' => 'one_time',
+            'remind_days_before' => 3, 'status' => 'paid', 'paid_on' => now()->subDays(12),
+        ]);
+        $user->bills()->create([
+            'name' => 'Electricity', 'kind' => 'bill', 'amount_cents' => 120000,
+            'due_date' => now()->subDays(2), 'repeat' => 'monthly',
+            'remind_days_before' => 3, 'status' => 'overdue',
+        ]);
+
+        Sanctum::actingAs($user);
+        $body = $this->getJson('/api/reminders')->assertOk()->json();
+
+        $sub = collect($body['subscriptions'])->firstWhere('title', 'Old Sub');
+        $this->assertFalse($sub['overdue'], 'a paid subscription must not be flagged overdue');
+        $this->assertSame('Paid', $sub['when']);
+        $this->assertSame(-30, $sub['days']);
+
+        $bill = collect($body['done'])->firstWhere('title', 'Old Bill');
+        $this->assertFalse($bill['overdue']);
+        $this->assertSame('Paid', $bill['when']);
+
+        // A genuinely overdue reminder is untouched.
+        $live = collect($body['overdue'])->firstWhere('title', 'Electricity');
+        $this->assertTrue($live['overdue']);
+        $this->assertSame('2 days overdue', $live['when']);
+    }
+
     public function test_deleting_a_subscription_returns_the_recalculated_monthly_total(): void
     {
         $user = User::factory()->create();

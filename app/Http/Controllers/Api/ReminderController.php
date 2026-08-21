@@ -242,11 +242,17 @@ class ReminderController extends Controller
                 'due_date' => $b->due_date->format('Y-m-d'),
                 'due_on' => $b->due_date->format('Y-m-d'),
                 'label' => $b->due_date->format('D, d M'),
-                'when' => $this->relativeDay($days),
+                // Same reasoning as `overdue` below: "30 days overdue" is the
+                // wrong copy for something already settled.
+                'when' => $b->status === 'paid' ? 'Paid' : $this->relativeDay($days),
                 'repeat' => $b->repeat,
                 'remind_days_before' => $b->remind_days_before,
                 'days' => $days,
-                'overdue' => $b->status === 'overdue' || $days < 0,
+                // A settled reminder is never overdue, however long ago it was
+                // due. Subscriptions are only reachable through the
+                // `subscriptions` array now, so this flag — not list
+                // membership — is what the app reads to style them.
+                'overdue' => $b->status !== 'paid' && ($b->status === 'overdue' || $days < 0),
                 'status' => $b->status,
                 'paid_on' => $b->paid_on?->format('Y-m-d'),
             ];
