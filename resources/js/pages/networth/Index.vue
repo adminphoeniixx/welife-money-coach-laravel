@@ -1,7 +1,19 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
-import { Pencil, Plus, Trash2, Wallet } from '@lucide/vue';
-import { ref } from 'vue';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import {
+    Banknote,
+    Building2,
+    Gem,
+    Landmark,
+    LineChart,
+    Package,
+    Pencil,
+    PiggyBank,
+    Plus,
+    Trash2,
+    Wallet,
+} from '@lucide/vue';
+import { computed, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import {
     Dialog,
@@ -17,9 +29,17 @@ defineOptions({
     layout: { breadcrumbs: [{ title: 'Net Worth', href: '/net-worth' }] },
 });
 
-interface Account { id: number; name: string; type: string; type_label: string; balance: number; note: string | null }
+interface Account {
+    id: number;
+    name: string;
+    type: string;
+    type_label: string;
+    balance: number;
+    note: string | null;
+    updated_at: string | null;
+}
 
-defineProps<{
+const props = defineProps<{
     types: { key: string; label: string }[];
     summary: { assets: number; liabilities: number; net_worth: number };
     breakdown: { type: string; label: string; total: number; percent: number }[];
@@ -29,14 +49,32 @@ defineProps<{
 const { fmt, symbol } = useCurrency();
 const PALETTE = ['#CC1D79', '#7B2FF7', '#06B7AD', '#F5A524', '#3B82F6', '#10B981', '#EC4899', '#94A3B8'];
 
+// Every asset type gets its own icon so a card is recognisable at a glance.
+const TYPE_ICONS: Record<string, typeof Wallet> = {
+    bank: Landmark,
+    cash: Banknote,
+    gold: Gem,
+    fixed_deposit: PiggyBank,
+    mutual_fund: LineChart,
+    stocks: LineChart,
+    property: Building2,
+    other: Package,
+};
+const iconFor = (type: string) => TYPE_ICONS[type] ?? Wallet;
+
+const formatUpdated = (value: string | null) =>
+    value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+
+const netIsNegative = computed(() => props.summary.net_worth < 0);
+
 const open = ref(false);
 const editingId = ref<number | null>(null);
 const form = useForm({ name: '', type: 'bank', balance: '', note: '' });
 
-const openAdd = () => {
+const openAdd = (type = 'bank') => {
     editingId.value = null;
     form.clearErrors();
-    form.defaults({ name: '', type: 'bank', balance: '', note: '' });
+    form.defaults({ name: '', type, balance: '', note: '' });
     form.reset();
     open.value = true;
 };
@@ -72,9 +110,15 @@ return;
     <Head title="Net Worth" />
 
     <div class="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <h1 class="text-lg font-extrabold">Assets &amp; Net Worth</h1>
-            <button class="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white" style="background: linear-gradient(135deg, #CC1D79 0%, #06B7AD 100%)" @click="openAdd">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h1 class="text-lg font-extrabold">Assets &amp; Net Worth</h1>
+                <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
+                    You add and update every value here yourself. Nothing is fetched from a bank, so a balance stays
+                    exactly as you last saved it.
+                </p>
+            </div>
+            <button class="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white" style="background: linear-gradient(135deg, #CC1D79 0%, #06B7AD 100%)" @click="openAdd()">
                 <Plus :size="16" /> Add asset
             </button>
         </div>
@@ -85,15 +129,29 @@ return;
                 <div class="text-xs font-medium text-white/80">Net worth</div>
                 <div class="mt-1 text-3xl font-extrabold">{{ fmt(summary.net_worth) }}</div>
                 <div class="mt-2 text-xs text-white/85">Assets − Liabilities</div>
+                <div class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold">
+                    <Pencil :size="11" /> Manually entered
+                </div>
             </div>
             <div class="rounded-2xl border border-border bg-card p-6">
                 <div class="text-xs font-semibold text-muted-foreground">Total assets</div>
                 <div class="mt-1 text-2xl font-extrabold text-[#06B7AD]">{{ fmt(summary.assets) }}</div>
+                <div class="mt-2 text-xs text-muted-foreground">
+                    {{ accounts.length }} {{ accounts.length === 1 ? 'entry' : 'entries' }} you keep up to date
+                </div>
             </div>
             <div class="rounded-2xl border border-border bg-card p-6">
                 <div class="text-xs font-semibold text-muted-foreground">Total liabilities</div>
                 <div class="mt-1 text-2xl font-extrabold text-[#CC1D79]">{{ fmt(summary.liabilities) }}</div>
+                <Link href="/debts" class="mt-2 inline-block text-xs font-semibold text-muted-foreground underline-offset-2 hover:underline">
+                    From your active debts →
+                </Link>
             </div>
+        </div>
+
+        <div v-if="netIsNegative" class="rounded-xl border border-[#CC1D79]/30 bg-[#CC1D79]/5 px-4 py-3 text-sm text-muted-foreground">
+            Your debts are larger than the assets you have added. Add the rest of your savings and investments to see the
+            full picture.
         </div>
 
         <!-- Breakdown -->
@@ -116,20 +174,45 @@ return;
         <div v-if="accounts.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div v-for="(a, i) in accounts" :key="a.id" class="group rounded-2xl border border-border bg-card p-5">
                 <div class="flex items-start justify-between">
-                    <span class="grid h-10 w-10 place-items-center rounded-xl text-white" :style="{ background: PALETTE[i % PALETTE.length] }"><Wallet :size="18" /></span>
-                    <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button class="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground hover:bg-muted" @click="openEdit(a)"><Pencil :size="13" /></button>
-                        <button class="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground hover:bg-[#CC1D79]/10 hover:text-[#CC1D79]" @click="deleteTarget = a"><Trash2 :size="13" /></button>
+                    <span class="grid h-10 w-10 place-items-center rounded-xl text-white" :style="{ background: PALETTE[i % PALETTE.length] }">
+                        <component :is="iconFor(a.type)" :size="18" />
+                    </span>
+                    <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                        <button class="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground hover:bg-muted" title="Update value" @click="openEdit(a)"><Pencil :size="13" /></button>
+                        <button class="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground hover:bg-[#CC1D79]/10 hover:text-[#CC1D79]" title="Remove" @click="deleteTarget = a"><Trash2 :size="13" /></button>
                     </div>
                 </div>
                 <div class="mt-3 font-semibold">{{ a.name }}</div>
                 <div class="text-xs text-muted-foreground">{{ a.type_label }}</div>
                 <div class="mt-2 text-xl font-extrabold">{{ fmt(a.balance) }}</div>
                 <div v-if="a.note" class="mt-1 truncate text-xs text-muted-foreground">{{ a.note }}</div>
+                <button class="mt-3 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" @click="openEdit(a)">
+                    <template v-if="formatUpdated(a.updated_at)">You last updated this on {{ formatUpdated(a.updated_at) }}</template>
+                    <template v-else>Update this value</template>
+                </button>
             </div>
         </div>
-        <div v-else class="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
-            Add your bank balances, gold, FDs, mutual funds, stocks and property to see your true net worth.
+
+        <!-- Empty state: manual entry is the only way in, so make that the call to action. -->
+        <div v-else class="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+            <span class="mx-auto grid h-14 w-14 place-items-center rounded-2xl text-white" style="background: linear-gradient(135deg, #CC1D79 0%, #06B7AD 100%)">
+                <Landmark :size="24" />
+            </span>
+            <h2 class="mt-4 font-bold">Nothing added yet</h2>
+            <p class="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
+                Type in what you own — bank balances, cash, gold, FDs, mutual funds, stocks and property — and we work
+                out your net worth against your debts. You update these numbers whenever they change.
+            </p>
+            <div class="mt-5 flex flex-wrap justify-center gap-2">
+                <button
+                    v-for="t in types"
+                    :key="t.key"
+                    class="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-semibold hover:border-[#CC1D79] hover:text-[#CC1D79]"
+                    @click="openAdd(t.key)"
+                >
+                    <component :is="iconFor(t.key)" :size="13" /> {{ t.label }}
+                </button>
+            </div>
         </div>
     </div>
 
@@ -138,7 +221,7 @@ return;
         <DialogContent class="sm:max-w-md">
             <DialogHeader>
                 <DialogTitle>{{ editingId ? 'Edit asset' : 'Add asset' }}</DialogTitle>
-                <DialogDescription>Track anything you own that has value.</DialogDescription>
+                <DialogDescription>Type in anything you own that has value — the number stays as you save it.</DialogDescription>
             </DialogHeader>
             <form class="space-y-4" @submit.prevent="submit">
                 <div>
@@ -159,6 +242,15 @@ return;
                         <InputError :message="form.errors.balance" class="mt-1" />
                     </div>
                 </div>
+                <p class="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+                    <template v-if="form.type === 'bank'">
+                        Enter the balance as you see it in your bank app today. This is not a live bank balance — it will
+                        not refresh on its own, so come back and update it when it changes.
+                    </template>
+                    <template v-else>
+                        Enter today's value. It will not refresh on its own, so update it whenever it changes.
+                    </template>
+                </p>
                 <div>
                     <label class="mb-1.5 block text-sm font-medium">Note (optional)</label>
                     <input v-model="form.note" type="text" class="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-[#CC1D79]" />

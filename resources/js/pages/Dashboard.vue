@@ -225,6 +225,7 @@ const tipIcon = (name: string) => {
                     <div>
                         <div class="text-xs font-medium text-white/70">Net worth</div>
                         <div class="text-2xl font-extrabold">{{ fmt(kpis.net_worth) }}</div>
+                        <div class="text-[11px] text-white/70">From the assets you entered</div>
                     </div>
                     <div>
                         <div class="text-xs font-medium text-white/70">Saved this month</div>

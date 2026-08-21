@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\StampsUserCurrency;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $balance_cents
  * @property string $currency
  * @property string|null $note
+ * @property CarbonInterface|null $updated_at
  */
 #[Fillable(['user_id', 'name', 'type', 'balance_cents', 'currency', 'note'])]
 class FinanceAccount extends Model

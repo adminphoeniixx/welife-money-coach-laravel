@@ -43,6 +43,7 @@ class AssetController extends Controller
                 'type_label' => Options::assetTypeLabel($a->type),
                 'balance' => Money::toRupees($a->balance_cents),
                 'note' => $a->note,
+                'updated_at' => $a->updated_at?->toIso8601String(),
             ])->values(),
         ]);
     }
